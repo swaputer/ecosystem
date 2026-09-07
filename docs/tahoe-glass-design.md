@@ -15,6 +15,10 @@ The active visual direction keeps the existing desktop and mobile information ar
 - `design/tahoe-terminal-mobile.png` — full-screen mobile Terminal
 - `design/tahoe-terminal-desktop-implemented.png` — verified desktop implementation
 - `design/tahoe-terminal-mobile-implemented.png` — verified mobile implementation
+- `design/computer-mint.png` — verified Mint workbench
+- `design/computer-market.png` — verified Market directory
+- `design/computer-bridge.png` — verified Bridge workbench
+- `design/computer-mobile-bridge.png` — verified mobile Bridge flow
 
 ## Product palette
 
@@ -46,3 +50,9 @@ The canonical brand mark is the exact `swaputer-mark.png` used by `explorer/apps
 Desktop and mobile preserve the same applications and flows. Mobile renders each function as a full-screen app, hides the desktop ETH balance, and does not render the Dock. Desktop retains the top-right ETH balance, independent movable windows, and Dock.
 
 Terminal is a read-only command surface backed by `@swaputer-labs/cli/browser`. It uses the configured Base Sepolia RPC endpoint, never accesses the wallet signer, and exposes only transaction inspection, receipt decoding, help, version and local screen clearing.
+
+## Application workbench
+
+Each application uses the same restrained inner-surface system while retaining one semantic accent. Mint uses warm gold for creation and supply actions, Market uses magenta with green bid and pink ask values, Bridge uses the protocol magenta, and Terminal uses a quiet monochrome command surface with a magenta prompt.
+
+Application inputs use inset graphite fields, primary actions use a single high-contrast gradient, and data surfaces use one subtle top highlight rather than nested glass cards. Mobile preserves the same hierarchy in a full-screen layout with larger touch targets and vertical continuation below the fold.
