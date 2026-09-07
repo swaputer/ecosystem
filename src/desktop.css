@@ -105,7 +105,7 @@ button:focus-visible,a:focus-visible { outline:2px solid var(--blue);outline-off
 .os-library-search:focus-within { border-color:var(--blue);box-shadow:0 0 0 1px var(--blue); }
 .os-library-search input { flex:1;width:0;border:0;outline:0;background:none;color:var(--ink);font-size:13px; }
 .os-library-search kbd { font:10px var(--font-mono);border:1px solid var(--rule);padding:2px 4px; }
-.os-library-apps { display:grid;grid-template-columns:repeat(5,88px);justify-content:center;gap:12px;margin-top:18px; }
+.os-library-apps { display:grid;grid-template-columns:repeat(5,88px);justify-content:start;gap:12px;margin-top:18px; }
 .os-library-app { display:flex;flex-direction:column;gap:10px;width:100%;text-align:center;padding:14px 6px;background:none;border:1px solid transparent;align-items:center; }
 .os-library-app:hover { border-color:var(--rule);background:var(--surface-raised); }
 .os-library-app>.os-icon { width:64px;height:64px; }
