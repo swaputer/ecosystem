@@ -228,6 +228,8 @@ test('desktop launcher stays inside short viewports without page scrolling or Do
     await boot(page);
     const desktop = (await page.locator('.os-desktop').boundingBox())!;
     const dock = (await page.getByRole('navigation', { name: 'Application dock' }).boundingBox())!;
+    expect(viewport.height - (dock.y + dock.height)).toBeGreaterThanOrEqual(13);
+    expect(viewport.height - (dock.y + dock.height)).toBeLessThanOrEqual(15);
     const icons = await page.locator('.os-desktop-app').evaluateAll(elements => elements.map(element => {
       const box = element.getBoundingClientRect();
       return { top: box.top, bottom: box.bottom, right: box.right };
@@ -242,6 +244,11 @@ test('desktop launcher stays inside short viewports without page scrolling or Do
     }));
     expect(pageSize.width).toBe(pageSize.clientWidth);
     expect(pageSize.height).toBe(pageSize.clientHeight);
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.getByRole('button', { name: 'Open Mint', exact: true }).click();
+    const frame = (await page.getByRole('region', { name: 'Mint app', exact: true }).boundingBox())!;
+    expect(dock.y - (frame.y + frame.height)).toBeGreaterThanOrEqual(12);
+    await page.getByRole('region', { name: 'Mint app', exact: true }).getByRole('button', { name: 'Close app', exact: true }).click();
     await page.screenshot({ path: info.outputPath(`desktop-${viewport.width}x${viewport.height}.png`) });
     await page.evaluate(() => (window as any).__walletEvent('accountsChanged', []));
   }

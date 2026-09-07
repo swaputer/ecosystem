@@ -40,6 +40,7 @@ The canonical brand mark is the exact `swaputer-mark.png` used by `explorer/apps
 
 - Menu bar, Dock, window chrome, wallet popover, application library, and confirmation dialogs use translucent dark glass with a restrained blur and a bright top-edge highlight.
 - Desktop app windows open centered within the usable area between the menu bar and Dock. Reopening an app restores this centered default rather than retaining a stale dragged position.
+- The desktop Dock sits 14px above the bottom safe area. Even at the supported short desktop viewport, an app window retains at least 12px of clear space above the Dock.
 - Window traffic lights retain a compact 13×13 visual dot while exposing a 24×24 pointer target. Pointer events stay local to each control so close, minimize, and maximize do not also trigger window dragging or focus handling.
 - Application content uses opaque or near-opaque graphite surfaces for contrast and transaction safety.
 - Corners are continuous and rounded; shadows are soft and layered rather than offset pixel blocks.
