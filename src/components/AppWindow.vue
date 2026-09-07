@@ -7,18 +7,21 @@ const props = defineProps<{ app: AppId; name: string; active: boolean; order: nu
 const emit = defineEmits<{ focus: []; close: []; minimize: [] }>();
 const preferredWidth: Record<AppId, number> = { mint: 860, market: 900, bridge: 860, terminal: 840, browser: 800 };
 const preferredHeight: Record<AppId, number> = { mint: 650, market: 660, bridge: 650, terminal: 620, browser: 620 };
-const width = ref(Math.min(preferredWidth[props.app], Math.max(580, window.innerWidth - 360)));
-const height = ref(Math.min(preferredHeight[props.app], window.innerHeight - 190));
-const x = ref(Math.max(144, (window.innerWidth - width.value) / 2 - 137) + props.index * 12);
-const y = ref(Math.max(54, window.innerHeight * .137) + props.index * 12);
+const desktopTop = 48;
+const desktopBottom = 112;
+const width = ref(Math.max(580, Math.min(preferredWidth[props.app], window.innerWidth - 48)));
+const height = ref(Math.max(340, Math.min(preferredHeight[props.app], window.innerHeight - desktopTop - desktopBottom)));
+const x = ref((window.innerWidth - width.value) / 2);
+// The window is positioned inside .os-desktop, whose origin already starts below the menu bar.
+const y = ref(Math.max(0, (window.innerHeight - desktopTop - desktopBottom - height.value) / 2));
 const maximized = ref(false);
 const frame = ref<HTMLElement>();
 function fitViewport() {
   if (window.innerWidth <= 760) return;
-  width.value = Math.max(580, Math.min(width.value, window.innerWidth - 24));
-  height.value = Math.max(340, Math.min(height.value, window.innerHeight - 160));
-  x.value = Math.max(0, Math.min(x.value, window.innerWidth - width.value - 12));
-  y.value = Math.max(0, Math.min(y.value, window.innerHeight - height.value - 130));
+  width.value = Math.max(580, Math.min(width.value, window.innerWidth - 48));
+  height.value = Math.max(340, Math.min(height.value, window.innerHeight - desktopTop - desktopBottom));
+  x.value = Math.max(24, Math.min(x.value, window.innerWidth - width.value - 24));
+  y.value = Math.max(0, Math.min(y.value, window.innerHeight - desktopTop - height.value - desktopBottom));
 }
 onMounted(() => { fitViewport(); window.addEventListener('resize', fitViewport); });
 onBeforeUnmount(() => window.removeEventListener('resize', fitViewport));
@@ -52,7 +55,7 @@ function nudge(event: KeyboardEvent) {
 <template>
   <section ref="frame" :class="['os-window', `os-window--${app}`, { 'is-active': active, 'is-maximized': maximized }]" :style="style" :aria-label="`${name} app`" @pointerdown="emit('focus')" @focusin="emit('focus')">
     <header class="os-window-titlebar" @pointerdown="start" @dblclick.self="maximized = !maximized" @keydown="nudge" tabindex="0" :aria-label="`${name} window. Alt and arrow keys to move.`">
-      <div class="os-window-controls"><button aria-label="Close app" class="control-close" @click="emit('close')"><X /></button><button aria-label="Minimize app" class="control-minimize" @click="emit('minimize')"><Minus /></button><button aria-label="Toggle maximize" class="control-maximize" @click="maximized = !maximized"><Maximize2 /></button></div>
+      <div class="os-window-controls"><button type="button" title="Close" aria-label="Close app" class="control-close" @pointerdown.stop @click.stop="emit('close')"><X /></button><button type="button" title="Minimize" aria-label="Minimize app" class="control-minimize" @pointerdown.stop @click.stop="emit('minimize')"><Minus /></button><button type="button" title="Maximize" aria-label="Toggle maximize" class="control-maximize" @pointerdown.stop @click.stop="maximized = !maximized"><Maximize2 /></button></div>
       <button class="os-mobile-back" aria-label="Home" @click="emit('minimize')"><ChevronLeft :size="20" />Home</button>
       <span class="os-window-name"><AppIcon :app="app" small />{{ name }}</span><span class="os-window-grip" aria-hidden="true"></span>
     </header>

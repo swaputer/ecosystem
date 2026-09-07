@@ -140,9 +140,17 @@ test('Swaputer is static, Explore opens separately, and power off requires confi
   await expect(page.getByRole('button', { name: 'Power on and connect wallet' })).toBeVisible();
 });
 test('window moves, resizes, maximizes, closes and reopens', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await boot(page); await page.getByRole('button', { name: 'Open Mint', exact: true }).click();
   const frame = page.getByRole('region', { name: 'Mint app', exact: true });
   const before = await frame.boundingBox();
+  const viewport = page.viewportSize()!;
+  expect(Math.abs(before!.x + before!.width / 2 - viewport.width / 2)).toBeLessThanOrEqual(1);
+  const usableCenterY = 48 + (viewport.height - 48 - 112) / 2;
+  expect(Math.abs(before!.y + before!.height / 2 - usableCenterY)).toBeLessThanOrEqual(1);
+  const closeTarget = await frame.getByRole('button', { name: 'Close app', exact: true }).boundingBox();
+  expect(closeTarget!.width).toBeGreaterThanOrEqual(24);
+  expect(closeTarget!.height).toBeGreaterThanOrEqual(24);
   const bar = frame.locator('.os-window-titlebar');
   const b = (await bar.boundingBox())!;
   await page.mouse.move(b.x + 180, b.y + 20); await page.mouse.down(); await page.mouse.move(b.x + 220, b.y + 50); await page.mouse.up();
@@ -155,6 +163,9 @@ test('window moves, resizes, maximizes, closes and reopens', async ({ page }) =>
   await expect(frame).toHaveClass(/is-maximized/);
   await frame.getByRole('button', { name: 'Close app', exact: true }).click(); await expect(frame).toBeHidden();
   await page.getByRole('button', { name: 'Open Mint', exact: true }).click(); await expect(frame).toBeVisible();
+  const reopened = await frame.boundingBox();
+  expect(Math.abs(reopened!.x + reopened!.width / 2 - viewport.width / 2)).toBeLessThanOrEqual(1);
+  expect(Math.abs(reopened!.y + reopened!.height / 2 - usableCenterY)).toBeLessThanOrEqual(1);
 });
 
 test('Market navigation stays inside its App and explorer links are external', async ({ page }) => {
