@@ -119,6 +119,10 @@ test('Swaputer is static, Explore opens separately, and power off requires confi
   await expect(page.locator('.os-system-dropdown')).toHaveCount(0);
   await expect(page.locator('.os-menubar').getByRole('button', { name: 'Applications', exact: true })).toHaveCount(0);
   await expect(page.locator('.os-menubar').getByRole('button', { name: 'Window', exact: true })).toHaveCount(0);
+  await page.context().route('http://127.0.0.1:4174/**', route => route.fulfill({
+    contentType: 'text/html',
+    body: '<!doctype html><title>Swaputer Explore test stub</title>'
+  }));
   const popupPromise = page.waitForEvent('popup');
   await page.getByRole('button', { name: 'Open Explore', exact: true }).click();
   const popup = await popupPromise;
