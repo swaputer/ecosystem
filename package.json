@@ -1,0 +1,36 @@
+{
+  "name": "@swaputer/computer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "typecheck": "vue-tsc -b --pretty false",
+    "test": "node --test --experimental-strip-types test/*.test.mjs",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@fontsource-variable/inter": "5.3.0",
+    "@lucide/vue": "1.37.0",
+    "@noble/hashes": "1.7.1",
+    "@swaputer-labs/cli": "file:vendor/swaputer-labs-cli-0.1.2.tgz",
+    "@swaputer-labs/receipt-codec": "file:vendor/swaputer-labs-receipt-codec-0.1.2.tgz",
+    "@swaputer-labs/tinysol": "0.3.2",
+    "buffer": "6.0.3",
+    "ethers": "6.17.0",
+    "vue": "3.5.42",
+    "vue-router": "4.6.4"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.0",
+    "@types/node": "^22.10.2",
+    "@vitejs/plugin-vue": "6.0.8",
+    "typescript": "5.9.3",
+    "vite": "8.2.2",
+    "vue-tsc": "^3.1.0"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  }
+}
