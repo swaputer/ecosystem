@@ -32,6 +32,12 @@ const initialPath = window.location.hash.slice(1);
 const location = window.location;
 
 function focus(id: AppId) { if (active.value !== id) { active.value = id; windows[id].order = ++order; } }
+function closeOtherWindows(id: AppId) {
+  for (const app of apps) {
+    if (app.id === id) continue;
+    Object.assign(windows[app.id], { mounted: false, open: false, minimized: false, path: app.path });
+  }
+}
 function open(id: AppId, path?: string) {
   const app = apps.find(item => item.id === id);
   if (app?.external) {
@@ -40,6 +46,7 @@ function open(id: AppId, path?: string) {
     return;
   }
   const state = windows[id]; if (!state) return;
+  if (!mobile.value) closeOtherWindows(id);
   state.mounted = true; state.open = true; state.minimized = false;
   if (path) state.path = path;
   focus(id); library.value = false; switcher.value = false;
@@ -73,6 +80,10 @@ function shortcuts(event: KeyboardEvent) {
 function resize(event: MediaQueryListEvent) {
   mobile.value = event.matches;
   if (event.matches) { accountMenu.value = false; powerConfirm.value = false; }
+  else {
+    const keep = active.value ?? apps.filter(app => windows[app.id].open).sort((a, b) => windows[b.id].order - windows[a.id].order)[0]?.id;
+    if (keep) { closeOtherWindows(keep); active.value = keep; history.replaceState(null, '', `#${windows[keep].path}`); }
+  }
 }
 watch(wallet.connected, connected => {
   clearTimeout(bootTimer);

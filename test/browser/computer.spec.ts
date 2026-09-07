@@ -27,7 +27,7 @@ async function boot(page: Page, path = '/') {
   await page.getByRole('button', { name: 'Power on and connect wallet' }).click();
   await expect(page.locator('.os-desktop')).toBeVisible();
 }
-test('power connects only; desktop single click and independent windows preserve drafts', async ({ page }) => {
+test('power connects only; desktop keeps one window and closes the previous app', async ({ page }) => {
   await boot(page);
   const mintIcon = page.locator('.os-desktop-app').filter({ hasText: /^Mint$/ });
   await mintIcon.click();
@@ -35,13 +35,18 @@ test('power connects only; desktop single click and independent windows preserve
   await expect(mint.getByLabel('Contract address')).toBeVisible();
   await mint.getByLabel('Contract address').fill('0xabc');
   await page.getByRole('button', { name: 'Open Market', exact: true }).click();
-  await expect(page.getByRole('region', { name: 'Market app', exact: true })).toBeVisible();
+  const market = page.getByRole('region', { name: 'Market app', exact: true });
+  await expect(market).toBeVisible();
+  await expect(mint).toHaveCount(0);
+  await expect(page.locator('.os-window')).toHaveCount(1);
   await page.getByRole('button', { name: 'Open Mint', exact: true }).click();
-  await expect(mint.getByLabel('Contract address')).toHaveValue('0xabc');
+  await expect(market).toHaveCount(0);
+  await expect(mint.getByLabel('Contract address')).toHaveValue('');
+  await mint.getByLabel('Contract address').fill('0xdef');
   await mint.getByRole('button', { name: 'Minimize app', exact: true }).click();
   await expect(mint).toBeHidden();
   await page.getByRole('button', { name: 'Open Mint', exact: true }).click();
-  await expect(mint.getByLabel('Contract address')).toHaveValue('0xabc');
+  await expect(mint.getByLabel('Contract address')).toHaveValue('0xdef');
   expect(await page.evaluate(() => (window as any).__walletCalls)).not.toContain('eth_sendTransaction');
 });
 test('launcher searches by app name and launches an app', async ({ page }) => {
@@ -159,13 +164,20 @@ test('window moves, resizes, maximizes, closes and reopens', async ({ page }) =>
   const oldWidth = (await frame.boundingBox())!.width;
   await page.mouse.move(corner.x + 8, corner.y + 8); await page.mouse.down(); await page.mouse.move(corner.x - 80, corner.y - 30); await page.mouse.up();
   expect((await frame.boundingBox())!.width).toBeLessThan(oldWidth);
+  await page.setViewportSize({ width: 1320, height: 840 });
+  await expect.poll(async () => {
+    const recentered = (await frame.boundingBox())!;
+    return Math.abs(recentered.x + recentered.width / 2 - 660);
+  }).toBeLessThanOrEqual(1);
+  const recentered = (await frame.boundingBox())!;
+  expect(Math.abs(recentered.y + recentered.height / 2 - (48 + (840 - 48 - 112) / 2))).toBeLessThanOrEqual(1);
   await frame.getByRole('button', { name: 'Toggle maximize' }).click();
   await expect(frame).toHaveClass(/is-maximized/);
   await frame.getByRole('button', { name: 'Close app', exact: true }).click(); await expect(frame).toBeHidden();
   await page.getByRole('button', { name: 'Open Mint', exact: true }).click(); await expect(frame).toBeVisible();
   const reopened = await frame.boundingBox();
-  expect(Math.abs(reopened!.x + reopened!.width / 2 - viewport.width / 2)).toBeLessThanOrEqual(1);
-  expect(Math.abs(reopened!.y + reopened!.height / 2 - usableCenterY)).toBeLessThanOrEqual(1);
+  expect(Math.abs(reopened!.x + reopened!.width / 2 - 660)).toBeLessThanOrEqual(1);
+  expect(Math.abs(reopened!.y + reopened!.height / 2 - (48 + (840 - 48 - 112) / 2))).toBeLessThanOrEqual(1);
 });
 
 test('Market navigation stays inside its App and explorer links are external', async ({ page }) => {

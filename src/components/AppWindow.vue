@@ -20,8 +20,8 @@ function fitViewport() {
   if (window.innerWidth <= 760) return;
   width.value = Math.max(580, Math.min(width.value, window.innerWidth - 48));
   height.value = Math.max(340, Math.min(height.value, window.innerHeight - desktopTop - desktopBottom));
-  x.value = Math.max(24, Math.min(x.value, window.innerWidth - width.value - 24));
-  y.value = Math.max(0, Math.min(y.value, window.innerHeight - desktopTop - height.value - desktopBottom));
+  x.value = (window.innerWidth - width.value) / 2;
+  y.value = Math.max(0, (window.innerHeight - desktopTop - desktopBottom - height.value) / 2);
 }
 onMounted(() => { fitViewport(); window.addEventListener('resize', fitViewport); });
 onBeforeUnmount(() => window.removeEventListener('resize', fitViewport));
