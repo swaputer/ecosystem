@@ -330,7 +330,7 @@ onBeforeUnmount(() => {
           <button class="market-advanced" type="button" :disabled="actionBusy" :aria-expanded="advanced" @click="advanced = !advanced">Advanced settings <ChevronDown :size="14" /></button>
           <label v-if="advanced"><span>VM execution budget</span><div><input v-model="vmBudget" :disabled="actionBusy" inputmode="decimal" /><b>ETH</b></div></label>
           <dl v-if="advanced && feeConfig"><div><dt>Protocol fee ({{ feeConfig.feeBps / 100 }}%)</dt><dd>{{ nativeAmount(draftProtocolFee, 18) }} ETH</dd></div></dl>
-          <button class="market-submit" type="button" :disabled="actionBusy || (wallet.address.value ? !draft.valid : false)" @click="submitOrder"><LoaderCircle v-if="busy" class="spin" :size="17" /><Wallet v-else-if="!wallet.address.value" :size="16" /><Plus v-else :size="16" />{{ busy ? 'Confirming…' : wallet.address.value ? (createSide === 'sell' ? 'List tokens' : 'Make an offer') : 'Connect wallet' }}</button>
+          <button class="market-submit" type="button" :disabled="actionBusy || (wallet.address.value ? !draft.valid : false)" @click="submitOrder"><LoaderCircle v-if="busy" class="spin" :size="17" /><Wallet v-else-if="!wallet.address.value" :size="16" /><Plus v-else :size="16" />{{ busy ? 'Finalizing…' : wallet.address.value ? (createSide === 'sell' ? 'List tokens' : 'Make an offer') : 'Connect wallet' }}</button>
           <p>{{ createSide === 'buy' ? 'ETH is held in escrow until filled or cancelled.' : `${symbol} is held in escrow until filled or cancelled.` }}</p>
 
       </form>
@@ -348,7 +348,7 @@ onBeforeUnmount(() => {
         <div v-if="selectedPayment > 0n"><dt>Wallet payment</dt><dd>{{ formatEther(selectedPayment) }} ETH</dd></div>
       </dl>
       <p class="market-confirm-note">{{ selectedIsOwn ? 'Unfilled escrow is returned when you cancel.' : 'This order is filled in full.' }} Network gas is additional.</p>
-      <button class="market-submit" type="button" :disabled="actionBusy || (!selectedIsOwn && selectedExpired)" @click="confirmOrder"><LoaderCircle v-if="busy" class="spin" :size="17" />{{ busy ? 'Confirming…' : !selectedIsOwn && selectedExpired ? 'Order expired' : !wallet.address.value ? 'Connect wallet' : confirmationLabel }}</button>
+      <button class="market-submit" type="button" :disabled="actionBusy || (!selectedIsOwn && selectedExpired)" @click="confirmOrder"><LoaderCircle v-if="busy" class="spin" :size="17" />{{ busy ? 'Finalizing…' : !selectedIsOwn && selectedExpired ? 'Order expired' : !wallet.address.value ? 'Connect wallet' : confirmationLabel }}</button>
     </MarketDialog>
     <MarketDialog v-if="marketModal" title="Create SRC20 market" :busy="actionBusy" @close="marketModal = false">
       <p class="market-confirm-note">Create a market for {{ token?.symbol || 'this SRC20' }}. Deploying the escrow and registering the market requires two wallet transactions.</p>

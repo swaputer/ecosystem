@@ -5,7 +5,7 @@ import { Check, Copy, LoaderCircle, LockKeyhole, Plus, Search, ShieldCheck, X } 
 import { useWallet } from "@/composables/useWallet";
 import { useChainAction } from "@/composables/useChainAction";
 import { toast } from "@/composables/useToast";
-import { NETWORK } from "@/lib/config";
+import { NETWORK, TRANSACTION_CONFIRMATIONS } from "@/lib/config";
 import { tokenAmount } from "@/lib/format";
 import { deployMiniContract, friendlyError, mintSRC20, requiresTransactionReview, short, verifyOpenMintSRC20, type TokenSnapshot } from "@/lib/protocol";
 import { prepareSRC20 } from "@/lib/src20Factory";
@@ -49,7 +49,7 @@ const mintLabel = computed(() => {
   if (!wallet.address.value) return "Connect wallet";
   if (mintPhase.value === "verifying") return "Verifying contract";
   if (mintPhase.value === "signing") return "Confirm in wallet";
-  if (mintPhase.value === "pending") return "Minting";
+  if (mintPhase.value === "pending") return `Finalizing · ${TRANSACTION_CONFIRMATIONS} confirms`;
   if (mintPhase.value === "confirmed") return "Minted";
   if (mintExhausted.value) return "Mint complete";
   return snapshot.value ? `Mint ${tokenAmount(snapshot.value.mintAmount, snapshot.value.decimals)} ${snapshot.value.symbol}` : "Load contract";
@@ -58,7 +58,7 @@ const createLabel = computed(() => {
   if (!wallet.address.value) return "Connect wallet";
   if (createPhase.value === "compiling") return "Compiling package";
   if (createPhase.value === "signing") return "Confirm in wallet";
-  if (createPhase.value === "pending") return "Deploying SRC20";
+  if (createPhase.value === "pending") return `Finalizing · ${TRANSACTION_CONFIRMATIONS} confirms`;
   if (createPhase.value === "confirmed") return "Done";
   return "Create SRC20";
 });
@@ -285,7 +285,7 @@ onBeforeUnmount(() => {
               <Check v-else-if="mintPhase === 'confirmed'" :size="16" />
               {{ mintLabel }}
             </button>
-            <a v-if="mintTransactionHash" class="mint-transaction" :href="mintTransactionUrl" target="_blank" rel="noreferrer">{{ mintPhase === 'pending' ? 'Verify pending transaction in Explore' : 'View transaction in Explore' }}</a>
+            <a v-if="mintTransactionHash" class="mint-transaction" :href="mintTransactionUrl" target="_blank" rel="noreferrer">{{ mintPhase === 'pending' ? 'Finalizing transaction · open in Explore' : 'View transaction in Explore' }}</a>
             <p>Eligibility is checked again onchain before signing.</p>
           </aside>
         </section>
@@ -314,7 +314,7 @@ onBeforeUnmount(() => {
           <div class="token-modal-decimals"><span>Decimals</span><strong>18</strong><LockKeyhole :size="14" /></div>
           <p class="token-modal-note">The token package is compiled and deployed as an SVM Mini Contract.</p>
           <p v-if="createdProgram" class="token-modal-result" role="status"><Check :size="14" /><span>Created</span><code>{{ short(createdProgram, 12, 10) }}</code><button type="button" aria-label="Copy created contract" @click="copy(createdProgram)"><Copy :size="13" /></button></p>
-          <a v-else-if="submittedHash" class="token-modal-result token-modal-result--pending" role="status" :href="submittedTransactionUrl" target="_blank" rel="noreferrer"><Check v-if="createPhase === 'confirmed'" :size="14" /><LoaderCircle v-else class="spin" :size="14" /><span>{{ createPhase === 'confirmed' ? 'Confirmed · open in Explore' : 'Transaction submitted' }}</span><code>{{ short(submittedHash, 10, 8) }}</code></a>
+          <a v-else-if="submittedHash" class="token-modal-result token-modal-result--pending" role="status" :href="submittedTransactionUrl" target="_blank" rel="noreferrer"><Check v-if="createPhase === 'confirmed'" :size="14" /><LoaderCircle v-else class="spin" :size="14" /><span>{{ createPhase === 'confirmed' ? 'Confirmed · open in Explore' : `Finalizing · ${TRANSACTION_CONFIRMATIONS} confirms` }}</span><code>{{ short(submittedHash, 10, 8) }}</code></a>
           <div class="token-modal-actions">
             <button class="token-modal-cancel" type="button" :disabled="createBusy" @click="closeCreator">Cancel</button>
             <button class="token-modal-submit" type="submit" :disabled="createBusy || chainAction.busy.value"><LoaderCircle v-if="createBusy" class="spin" :size="15" /><Check v-else-if="createPhase === 'confirmed'" :size="15" /><Plus v-else :size="15" />{{ createLabel }}</button>

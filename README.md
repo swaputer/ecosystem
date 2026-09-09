@@ -24,7 +24,7 @@ The Terminal uses transaction inspection from the published `@swaputer-labs/cli@
 
 The included release is Base Sepolia. Connecting a wallet does not sign or send a transaction. Transaction actions request confirmation in the wallet. Account or network changes lock the desktop and require reconnection.
 
-Computer serializes protocol writes so two applications cannot reuse the same action nonce. If a wallet or RPC cannot determine a submitted transaction's final status, Computer preserves the full transaction hash for Explorer reconciliation and blocks further writes until the page is reloaded.
+Computer serializes protocol writes so two applications cannot reuse the same action nonce. A write is shown as confirmed only after the manifest's confirmation policy has been met (12 blocks in the bundled Base Sepolia release) and the app has re-read the transaction, receipt and containing block to verify their canonical linkage. If a wallet or RPC cannot determine that final status, Computer preserves the full transaction hash for Explore reconciliation and blocks further writes until the page is reloaded.
 
 Use an injected EVM browser wallet on desktop, or open the site in an EVM wallet's built-in mobile browser. Ordinary mobile Safari/Chrome without an injected wallet cannot connect in this version; WalletConnect is not integrated. Power off clears the local session; it does not revoke the wallet's site permission.
 

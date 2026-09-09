@@ -6,7 +6,7 @@ import AssetGlyph from "@/components/AssetGlyph.vue";
 import { useWallet } from "@/composables/useWallet";
 import { useChainAction } from "@/composables/useChainAction";
 import { toast } from "@/composables/useToast";
-import { SETH } from "@/lib/config";
+import { SETH, TRANSACTION_CONFIRMATIONS } from "@/lib/config";
 import { nativeAmount } from "@/lib/format";
 import { bridgeETH, friendlyError, readProvider, readBridgeSnapshot, readProtocolFeeConfig, requiresTransactionReview, type BridgeSnapshot, type ProtocolFeeConfig } from "@/lib/protocol";
 
@@ -39,7 +39,7 @@ const balance = computed(() => {
 const actionLabel = computed(() => {
   if (!wallet.address.value) return "Connect wallet";
   if (phase.value === "signing") return "Confirm in wallet";
-  if (phase.value === "pending") return "Transaction pending";
+  if (phase.value === "pending") return `Finalizing · ${TRANSACTION_CONFIRMATIONS} confirms`;
   return direction.value === "deposit" ? "Deposit ETH" : "Redeem sETH";
 });
 const parsedVMBudget = computed(() => {

@@ -5,6 +5,7 @@ import vm from "node:vm";
 import ts from "typescript";
 import * as ethers from "ethers";
 import * as universalRouterLib from "../src/lib/universalRouter.ts";
+import * as transactionFinalityLib from "../src/lib/transactionFinality.ts";
 
 const { AbiCoder, Interface, ZeroAddress, getAddress } = ethers;
 const {
@@ -72,12 +73,30 @@ function protocolHarness() {
       minNetTokenOut: 1n
     },
     SETH: {},
+    TRANSACTION_CONFIRMATIONS: 12,
     HOOK_ABI: [],
     KERNEL_ABI: [],
     SETH_VAULT_ABI: []
   };
 
   class FakeJsonRpcProvider {}
+  const canonicalReceipt = hash => {
+    const blockHash = `0x${"13".repeat(32)}`;
+    return {
+      hash,
+      status: 1,
+      blockHash,
+      blockNumber: 100,
+      index: 0,
+      logs: [],
+      provider: {
+        getTransactionReceipt: async () => ({ hash, status: 1, blockHash, blockNumber: 100, index: 0 }),
+        getTransaction: async () => ({ hash, blockHash, blockNumber: 100, index: 0 }),
+        getBlock: async () => ({ hash: blockHash, number: 100 }),
+        getBlockNumber: async () => 111
+      }
+    };
+  };
   class FakeContract {
     constructor(address) { this.address = getAddress(address); }
     getFunction(name) {
@@ -85,7 +104,10 @@ function protocolHarness() {
         if (name !== "execute") throw new Error(`Unexpected transaction function: ${name}`);
         capture.execute = { address: this.address, args };
         const hash = `0x${"12".repeat(32)}`;
-        return { hash, wait: async () => ({ hash, status: 1, logs: [] }) };
+        return { hash, wait: async confirmations => {
+          capture.waitConfirmations = confirmations;
+          return canonicalReceipt(hash);
+        } };
       };
       invoke.staticCall = async (...args) => {
         if (name === "eoaAccountId") return actorId;
@@ -111,6 +133,7 @@ function protocolHarness() {
       };
       if (name === "./config") return config;
       if (name === "./universalRouter") return universalRouterLib;
+      if (name === "./transactionFinality") return transactionFinalityLib;
       if (name === "@swaputer-labs/receipt-codec") return { decodeVMReceipt: () => { throw new Error("No receipt payload in this harness"); } };
       throw new Error(`Unexpected module: ${name}`);
     }
@@ -122,7 +145,7 @@ function protocolHarness() {
       return `0x${"99".repeat(65)}`;
     }
   };
-  return { api: context.exports, capture, config, signer };
+  return { api: context.exports, canonicalReceipt, capture, config, signer };
 }
 
 test("direct SVM actions bind signatures to the official router and no executor", () => {
@@ -214,19 +237,25 @@ test("direct CALL signs for and executes through the official Universal Router",
   assert.equal(capture.execute.args[1].length, 1);
   assert.equal(capture.execute.args[2], capture.action.deadline);
   assert.equal(capture.execute.args[3].value, config.SWAPVM.vmInputWei);
+  assert.equal(capture.waitConfirmations, 12);
 });
 
 test("successful wallet repricing is treated as confirmation and reports the replacement hash", async () => {
-  const { api } = protocolHarness();
+  const { api, canonicalReceipt } = protocolHarness();
   const originalHash = `0x${"41".repeat(32)}`;
   const replacementHash = `0x${"42".repeat(32)}`;
-  const receipt = { hash: replacementHash, status: 1, logs: [] };
+  const receipt = canonicalReceipt(replacementHash);
   const submitted = [];
+  let waitedFor;
   const result = await api.waitForConfirmation({
     hash: originalHash,
-    wait: async () => { throw { code: "TRANSACTION_REPLACED", cancelled: false, replacement: { hash: replacementHash }, receipt }; }
+    wait: async confirmations => {
+      waitedFor = confirmations;
+      throw { code: "TRANSACTION_REPLACED", cancelled: false, replacement: { hash: replacementHash }, receipt };
+    }
   }, hash => submitted.push(hash));
   assert.equal(result, receipt);
+  assert.equal(waitedFor, 12);
   assert.deepEqual(submitted, [originalHash, replacementHash]);
 });
 
@@ -237,6 +266,25 @@ test("an indeterminate receipt wait preserves the full submitted hash", async ()
     api.waitForConfirmation({ hash, wait: async () => { throw new Error("RPC unavailable"); } }),
     error => error instanceof api.TransactionStatusUnknownError && error.transactionHash === hash
   );
+});
+
+test("an orphaned post-wait receipt remains unresolved and blocks a blind retry", async () => {
+  const { api, canonicalReceipt } = protocolHarness();
+  const hash = `0x${"44".repeat(32)}`;
+  const receipt = canonicalReceipt(hash);
+  receipt.provider.getBlock = async () => null;
+  let waitedFor;
+  await assert.rejects(
+    api.waitForConfirmation({
+      hash,
+      wait: async confirmations => {
+        waitedFor = confirmations;
+        return receipt;
+      }
+    }),
+    error => error instanceof api.TransactionStatusUnknownError && error.transactionHash === hash
+  );
+  assert.equal(waitedFor, 12);
 });
 
 test("direct DEPLOY uses the same official route with a zero executor", async () => {
