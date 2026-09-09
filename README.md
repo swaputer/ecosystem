@@ -20,7 +20,7 @@ On a phone, tap an app on the home screen. Each app opens full screen. There is 
 - **Terminal** combines Computer's read-only browser verifier adapter with published Swaputer verification modules for `inspect`, `decode-receipt`, `help`, `version` and `clear` commands.
 - **Explore** opens the protocol explorer in a separate browser tab.
 
-The Terminal uses transaction inspection from the published `@swaputer-labs/cli@0.1.2` package and receipt decoding from `@swaputer-labs/receipt-codec@0.1.2`. Because CLI 0.1.2 does not publish a browser export and its root barrel also loads Node-only deployment helpers, Computer imports the exact browser-safe inspection modules through a documented internal adapter. See [Browser CLI adapter provenance](docs/browser-cli-adapter.md). No repacked package or sibling repository is required.
+The Terminal uses transaction inspection from the published `@swaputer-labs/cli@0.1.2` package and receipt decoding from `@swaputer-labs/receipt-codec@0.1.2`. Its adapter additionally rechecks the receipt, transaction envelope, canonical block, finalized head and a 12-confirmation floor before displaying `Verified`. Because CLI 0.1.2 does not publish a browser export and its root barrel also loads Node-only deployment helpers, Computer imports the exact browser-safe inspection modules through a documented internal adapter. See [Browser CLI adapter provenance](docs/browser-cli-adapter.md). No repacked package or sibling repository is required.
 
 The included release is Base Sepolia. Connecting a wallet does not sign or send a transaction. Transaction actions request confirmation in the wallet. Account or network changes lock the desktop and require reconnection.
 

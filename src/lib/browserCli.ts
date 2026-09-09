@@ -2,9 +2,10 @@ import { InspectionError, InspectionErrorCode, isInspectionError } from "@swaput
 import { inspectTransaction } from "@swaputer-cli/inspect";
 import { jsonStringify } from "@swaputer-cli/json";
 import cliPackage from "@swaputer-cli/package";
-import type { RpcTransport } from "@swaputer-cli/rpc";
+import { HttpRpcTransport, type RpcTransport } from "@swaputer-cli/rpc";
 import type { Hex, SwaputerDeployment } from "@swaputer-cli/types";
 import { decodeVMReceipt, isVMReceiptError } from "@swaputer-labs/receipt-codec";
+import { CanonicalVerificationError, verifyCanonicalFinality } from "./canonicalFinality";
 
 export const BROWSER_ADAPTER_VERSION = "0.1.0";
 export const VERIFIER_PACKAGE_VERSION = cliPackage.version;
@@ -84,20 +85,32 @@ export async function executeBrowserCommand(input: string, options?: BrowserComm
     if (!transactionHash) usage({ missing: "transaction-hash" });
     const json = jsonFlag(flags);
     if (!options) usage({ missing: "browser-options" });
+    const transport = options.transport ?? new HttpRpcTransport();
     const result = await inspectTransaction(transactionHash, {
       deployment: options.deployment,
       rpcUrl: options.rpcUrl,
       rpcEnvironment: "browser",
-      ...(options.transport ? { transport: options.transport } : {})
+      transport
     });
-    if (json) return { lines: [jsonStringify(result)] };
+    const finality = await verifyCanonicalFinality({
+      transactionHash: result.transactionHash,
+      blockNumber: result.blockNumber,
+      blockHash: result.blockHash,
+      transactionIndex: result.transactionIndex,
+      chainId: result.deployment.chainId,
+      rpcUrl: options.rpcUrl,
+      transport
+    });
+    const verified = Object.freeze({ ...result, ...finality });
+    if (json) return { lines: [jsonStringify(verified)] };
     const lines = [
-      `Verified Swaputer transaction ${result.transactionHash}`,
-      `Network: ${result.deployment.networkName} (${result.deployment.chainId})`,
-      `Release: ${result.deployment.releaseName}`,
-      `Block: ${result.blockNumber}`
+      `Verified Swaputer transaction ${verified.transactionHash}`,
+      `Network: ${verified.deployment.networkName} (${verified.deployment.chainId})`,
+      `Release: ${verified.deployment.releaseName}`,
+      `Block: ${verified.blockNumber}`,
+      `Finality: finalized at ${verified.finalizedBlockNumber} (${verified.confirmations} confirmations observed)`
     ];
-    for (const [index, execution] of result.executions.entries()) {
+    for (const [index, execution] of verified.executions.entries()) {
       const summary = execution.receipt.worldExecution;
       lines.push(`Execution ${index + 1}: height=${execution.executionHeight} actor=${summary.actor} target=${summary.rootTarget} bytes=${summary.executedBytes} burned=${summary.tokenBurned}`);
     }
@@ -107,6 +120,10 @@ export async function executeBrowserCommand(input: string, options?: BrowserComm
 }
 
 export function browserErrorLines(error: unknown): readonly string[] {
+  if (error instanceof CanonicalVerificationError) {
+    const details = Object.keys(error.details).length ? ` ${jsonStringify(error.details)}` : "";
+    return [`error: ${error.code}${details}`];
+  }
   if (isInspectionError(error)) {
     const details = Object.keys(error.details).length ? ` ${jsonStringify(error.details)}` : "";
     return [`error: ${error.code}${details}`];
