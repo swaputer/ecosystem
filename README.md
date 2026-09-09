@@ -73,5 +73,3 @@ A standalone Docker build is also provided:
 docker build --pull --build-arg VITE_PROTOCOL_EXPLORER_URL=https://YOUR_EXPLORER_HOST -t swaputer-computer .
 docker run --rm -p 127.0.0.1:4175:8080 -e INDEXER_ORIGIN=http://YOUR_INDEXER_HOST:8080 swaputer-computer
 ```
-
-The protocol explorer's `VITE_COMPUTER_URL` should point to this app. Its old Mint, Market and Bridge links then forward to the corresponding installed application.
