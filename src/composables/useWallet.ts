@@ -74,6 +74,7 @@ async function connect() {
     provider.value = browserProvider;
     signer.value = walletSigner;
     address.value = walletAddress;
+    session.value++;
     void refreshBalance();
   } catch (cause) {
     if (version === attempt) error.value = (cause as { code?: number }).code === 4001 ? "Connection cancelled. Power on whenever you’re ready." : friendlyError(cause);

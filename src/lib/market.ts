@@ -19,6 +19,8 @@ import {
   readAccountId,
   readMiniUint,
   readProvider,
+  TransactionReviewRequiredError,
+  TransactionStatusUnknownError,
   writeMiniContract
 } from "./protocol";
 
@@ -44,9 +46,27 @@ function market(address: string, runner: ContractRunner = readProvider) {
   return new Contract(getAddress(address), MARKET_ABI, runner);
 }
 
-async function confirmed(transaction: { wait(): Promise<ContractTransactionReceipt | null> }, error: string) {
-  const receipt = await transaction.wait();
-  if (!receipt || receipt.status !== 1) throw new Error(error);
+async function confirmed(transaction: { hash: string; wait(): Promise<ContractTransactionReceipt | null> }, error: string) {
+  let receipt: ContractTransactionReceipt | null;
+  try {
+    receipt = await transaction.wait();
+  } catch (cause) {
+    const replacement = cause as {
+      code?: string;
+      cancelled?: boolean;
+      replacement?: { hash?: string };
+      receipt?: ContractTransactionReceipt | null;
+    };
+    if (replacement.code === "TRANSACTION_REPLACED") {
+      if (!replacement.cancelled && replacement.receipt?.status === 1) return replacement.receipt;
+      if (replacement.cancelled) throw new Error("The transaction was cancelled in the wallet.");
+      if (replacement.receipt?.status === 0) throw new Error(error);
+    }
+    if (replacement.receipt?.status === 0) throw new Error(error);
+    throw new TransactionStatusUnknownError(replacement.replacement?.hash || transaction.hash, cause);
+  }
+  if (!receipt) throw new TransactionStatusUnknownError(transaction.hash);
+  if (receipt.status !== 1) throw new Error(error);
   return receipt;
 }
 
@@ -62,8 +82,8 @@ export function quotePriceWei(amount: bigint, unitPriceWei: bigint): bigint {
   return value;
 }
 
-export async function marketAddressFor(program: string): Promise<string | null> {
-  const value = await factory().getFunction("marketFor").staticCall(program) as string;
+export async function marketAddressFor(program: string, runner: ContractRunner = readProvider): Promise<string | null> {
+  const value = await factory(runner).getFunction("marketFor").staticCall(program) as string;
   return getAddress(value) === ZeroAddress ? null : getAddress(value);
 }
 
@@ -91,17 +111,23 @@ export async function createMarketForToken(
 ): Promise<string> {
   requireMarket();
   const build = await escrowBuild();
-  const preview = await previewDeployment(actor, build.packageBytes);
-  const tokenCodeHash = await kernelContract().getFunction("programCodeHash").staticCall(SWAPVM.worldId, program) as string;
+  const preview = await previewDeployment(actor, build.packageBytes, signer);
+  const tokenCodeHash = await kernelContract(signer).getFunction("programCodeHash").staticCall(SWAPVM.worldId, program) as string;
   if (tokenCodeHash === "0x" + "00".repeat(32)) throw new Error("The SRC20 mini contract is not deployed in this SVM world.");
-  const predicted = await factory().getFunction("predictMarket").staticCall(program, tokenCodeHash, preview.programId) as string;
+  const predicted = await factory(signer).getFunction("predictMarket").staticCall(program, tokenCodeHash, preview.programId) as string;
   const constructorArgs = encodeConstructorArguments(["bytes32", "address"], [program, getAddress(predicted)]);
   onPhase?.("deploying-escrow");
-  await deployMiniContract(signer, actor, build.packageBytes, constructorArgs, 16_000, (hash) => onPhase?.("deploying-escrow", hash));
+  const deployment = await deployMiniContract(signer, actor, build.packageBytes, constructorArgs, 16_000, (hash) => onPhase?.("deploying-escrow", hash));
+  if (!deployment.confirmedProgramId) {
+    throw new TransactionReviewRequiredError(deployment.receipt.hash, "The escrow program ID could not be decoded from its receipt.");
+  }
+  if (deployment.confirmedProgramId.toLowerCase() !== preview.programId.toLowerCase()) {
+    throw new TransactionReviewRequiredError(deployment.receipt.hash, "The escrow used a different creator nonce than the market preview.");
+  }
   onPhase?.("creating-market");
-  const tx = await factory(signer).getFunction("createMarket")(program, tokenCodeHash, preview.programId);
+  const tx = await factory(signer).getFunction("createMarket")(program, tokenCodeHash, deployment.confirmedProgramId);
   await confirmed(tx, "Market creation was not confirmed.");
-  const created = await marketAddressFor(program);
+  const created = await marketAddressFor(program, signer);
   if (!created || created.toLowerCase() !== String(predicted).toLowerCase()) throw new Error("The created market binding could not be verified.");
   return created;
 }
@@ -124,7 +150,7 @@ export async function createOrder(
     const tx = await contract.getFunction("createBuyOrder")(amount, unitPriceWei, vmETHAmount, expiry, { value: total + vmETHAmount });
     return confirmed(tx, "Buy order creation was not confirmed.");
   }
-  const sellerId = await readAccountId(actor);
+  const sellerId = await readAccountId(actor, signer);
   const allowance = await readMiniUint(program, "allowance(bytes32,bytes32)", ["bytes32", "bytes32"], [sellerId, escrowId]);
   if (allowance < amount) {
     await writeMiniContract(signer, actor, program, "approve(bytes32,uint256)", ["bytes32", "uint256"], [escrowId, amount], 2_000);
@@ -146,7 +172,7 @@ export async function settleOrder(signer: Signer, actor: string, order: MarketOr
   const amount = BigInt(order.amount);
   const vmETHAmount = BigInt(order.vmEthAmount);
   if (order.side === "buy") {
-    const buyerId = await readAccountId(order.maker);
+    const buyerId = await readAccountId(order.maker, signer);
     const payload = callPayload("transfer(bytes32,uint256)", ["bytes32", "uint256"], [buyerId, amount]);
     const { envelope } = await buildSignedCallEnvelope(signer, actor, order.programId, payload, {
       recipient: actor,
@@ -158,7 +184,7 @@ export async function settleOrder(signer: Signer, actor: string, order: MarketOr
     const tx = await contract.getFunction("fillBuyOrder")(order.orderId, envelope, SWAPVM.sqrtPriceLimitX96!);
     return confirmed(tx, "Order fill was not confirmed.");
   }
-  const buyerId = await readAccountId(actor);
+  const buyerId = await readAccountId(actor, signer);
   const payload = callPayload("release(bytes32,uint256)", ["bytes32", "uint256"], [buyerId, amount]);
   const { envelope } = await buildSignedCallEnvelope(signer, actor, escrowId, payload, {
     recipient: actor,
@@ -174,7 +200,7 @@ export async function settleOrder(signer: Signer, actor: string, order: MarketOr
 export async function cancelMarketOrder(signer: Signer, actor: string, order: MarketOrder, escrowId: string): Promise<ContractTransactionReceipt> {
   const contract = market(order.marketAddress, signer);
   if (order.side === "buy") return confirmed(await contract.getFunction("cancelOrder")(order.orderId), "Order cancellation was not confirmed.");
-  const actorId = await readAccountId(actor);
+  const actorId = await readAccountId(actor, signer);
   const amount = BigInt(order.amount);
   const vmETHAmount = MARKET.defaultVMInputWei;
   const payload = callPayload("release(bytes32,uint256)", ["bytes32", "uint256"], [actorId, amount]);

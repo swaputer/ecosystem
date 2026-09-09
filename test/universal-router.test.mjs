@@ -84,7 +84,8 @@ function protocolHarness() {
       const invoke = async (...args) => {
         if (name !== "execute") throw new Error(`Unexpected transaction function: ${name}`);
         capture.execute = { address: this.address, args };
-        return { hash: `0x${"12".repeat(32)}`, wait: async () => ({ status: 1 }) };
+        const hash = `0x${"12".repeat(32)}`;
+        return { hash, wait: async () => ({ hash, status: 1, logs: [] }) };
       };
       invoke.staticCall = async (...args) => {
         if (name === "eoaAccountId") return actorId;
@@ -110,6 +111,7 @@ function protocolHarness() {
       };
       if (name === "./config") return config;
       if (name === "./universalRouter") return universalRouterLib;
+      if (name === "@swaputer-labs/receipt-codec") return { decodeVMReceipt: () => { throw new Error("No receipt payload in this harness"); } };
       throw new Error(`Unexpected module: ${name}`);
     }
   };
@@ -212,6 +214,29 @@ test("direct CALL signs for and executes through the official Universal Router",
   assert.equal(capture.execute.args[1].length, 1);
   assert.equal(capture.execute.args[2], capture.action.deadline);
   assert.equal(capture.execute.args[3].value, config.SWAPVM.vmInputWei);
+});
+
+test("successful wallet repricing is treated as confirmation and reports the replacement hash", async () => {
+  const { api } = protocolHarness();
+  const originalHash = `0x${"41".repeat(32)}`;
+  const replacementHash = `0x${"42".repeat(32)}`;
+  const receipt = { hash: replacementHash, status: 1, logs: [] };
+  const submitted = [];
+  const result = await api.waitForConfirmation({
+    hash: originalHash,
+    wait: async () => { throw { code: "TRANSACTION_REPLACED", cancelled: false, replacement: { hash: replacementHash }, receipt }; }
+  }, hash => submitted.push(hash));
+  assert.equal(result, receipt);
+  assert.deepEqual(submitted, [originalHash, replacementHash]);
+});
+
+test("an indeterminate receipt wait preserves the full submitted hash", async () => {
+  const { api } = protocolHarness();
+  const hash = `0x${"43".repeat(32)}`;
+  await assert.rejects(
+    api.waitForConfirmation({ hash, wait: async () => { throw new Error("RPC unavailable"); } }),
+    error => error instanceof api.TransactionStatusUnknownError && error.transactionHash === hash
+  );
 });
 
 test("direct DEPLOY uses the same official route with a zero executor", async () => {

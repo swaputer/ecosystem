@@ -21,15 +21,20 @@ function setup(verify = async () => token, query = {}) {
   const verified = [];
   const minted = [];
   const replacements = [];
+  const chainBusy = vue.ref(false);
+  const chainAction = { busy: chainBusy, unresolvedHash: vue.ref(null), acquire: () => { if (chainBusy.value) return null; chainBusy.value = true; return () => { chainBusy.value = false; }; }, hold: hash => { chainAction.unresolvedHash.value = hash; chainBusy.value = true; } };
   const modules = {
     vue: { ...vue, onMounted: fn => mounted.push(fn), onBeforeUnmount: () => {} },
     "vue-router": { useRoute: () => ({ query }), useRouter: () => ({ replace: async value => replacements.push(value) }) },
     "@/composables/useWallet": { useWallet: () => ({ address: vue.ref("wallet"), signer: vue.ref({}), connect: async () => {} }) },
+    "@/composables/useChainAction": { useChainAction: () => chainAction },
     "@/composables/useToast": { toast: { error: value => errors.push(value), success: value => successes.push(value) } },
+    "@/lib/apps": { explorerURL: path => path },
     "@/lib/protocol": {
       verifyOpenMintSRC20: async target => { verified.push(target); return verify(target); },
       friendlyError: error => error.message,
-      mintSRC20: async (_signer, _wallet, target, pending) => { minted.push(target); pending(); }
+      requiresTransactionReview: () => false,
+      mintSRC20: async (_signer, _wallet, target, pending) => { minted.push(target); pending(`0x${"44".repeat(32)}`); }
     }
   };
   const context = { exports: {}, require: name => {

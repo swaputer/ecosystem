@@ -3,21 +3,26 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router";
 import { Check, Copy, LoaderCircle, LockKeyhole, Plus, Search, ShieldCheck, X } from "@lucide/vue";
 import { useWallet } from "@/composables/useWallet";
+import { useChainAction } from "@/composables/useChainAction";
 import { toast } from "@/composables/useToast";
 import { NETWORK } from "@/lib/config";
 import { tokenAmount } from "@/lib/format";
-import { deployMiniContract, friendlyError, mintSRC20, short, verifyOpenMintSRC20, type TokenSnapshot } from "@/lib/protocol";
+import { deployMiniContract, friendlyError, mintSRC20, requiresTransactionReview, short, verifyOpenMintSRC20, type TokenSnapshot } from "@/lib/protocol";
 import { prepareSRC20 } from "@/lib/src20Factory";
+import { explorerURL } from "@/lib/apps";
 
 const route = useRoute();
 const router = useRouter();
 const wallet = useWallet();
+const chainAction = useChainAction();
 const requestedContract = typeof route.query.contract === "string" ? route.query.contract : "";
 const addressInput = ref(requestedContract);
 const contractId = ref<string | null>(null);
 const snapshot = ref<TokenSnapshot | null>(null);
 const loading = ref(false);
 const mintPhase = ref<"idle" | "verifying" | "signing" | "pending" | "confirmed">("idle");
+const mintTransactionHash = ref<string | null>(null);
+const mintTransactionUrl = computed(() => mintTransactionHash.value ? explorerURL(`/tx/${mintTransactionHash.value}`) : "");
 const copied = ref<string | null>(null);
 
 const creatorOpen = ref(false);
@@ -29,6 +34,7 @@ const mintAmount = ref("");
 const createPhase = ref<"idle" | "compiling" | "signing" | "pending" | "confirmed">("idle");
 const createdProgram = ref<string | null>(null);
 const submittedHash = ref<string | null>(null);
+const submittedTransactionUrl = computed(() => submittedHash.value ? explorerURL(`/tx/${submittedHash.value}`) : "");
 let copyTimer: number | undefined;
 let loadVersion = 0;
 
@@ -88,7 +94,7 @@ async function loadContract() {
 }
 
 async function mint() {
-  if (mintBusy.value || loading.value) return;
+  if (mintBusy.value || loading.value || chainAction.busy.value) return;
   if (!wallet.address.value || !wallet.signer.value) {
     await wallet.connect();
     return;
@@ -98,6 +104,9 @@ async function mint() {
   }
   const target = contractId.value;
   const version = loadVersion;
+  const release = chainAction.acquire();
+  if (!release) { toast.error("Another wallet transaction is already in progress."); return; }
+  mintTransactionHash.value = null;
   mintPhase.value = "verifying";
   try {
     // Recheck the pinned package and read ABI directly onchain before signing.
@@ -107,14 +116,17 @@ async function mint() {
       return;
     }
     mintPhase.value = "signing";
-    await mintSRC20(wallet.signer.value, wallet.address.value, target, () => { mintPhase.value = "pending"; });
+    await mintSRC20(wallet.signer.value, wallet.address.value, target, (hash) => { mintTransactionHash.value = hash; mintPhase.value = "pending"; });
     mintPhase.value = "confirmed";
     toast.success("SRC20 minted.");
   } catch (cause) {
-    mintPhase.value = "idle";
+    if (requiresTransactionReview(cause)) { chainAction.hold(cause.transactionHash); mintTransactionHash.value = cause.transactionHash; mintPhase.value = "pending"; }
+    else mintPhase.value = "idle";
     toast.error(friendlyError(cause));
+    if (!requiresTransactionReview(cause)) release();
     return;
   }
+  release();
   // A read failure must not misreport a confirmed mint as a failed transaction.
   try {
     const refreshed = await verifyOpenMintSRC20(target);
@@ -150,13 +162,17 @@ function closeCreator() {
 }
 
 async function createToken() {
+  if (createBusy.value || chainAction.busy.value) return;
   if (!wallet.address.value || !wallet.signer.value) {
     await wallet.connect();
     return;
   }
+  const release = chainAction.acquire();
+  if (!release) { toast.error("Another wallet transaction is already in progress."); return; }
   createPhase.value = "compiling";
   createdProgram.value = null;
   submittedHash.value = null;
+  let keepChainLock = false;
   try {
     const prepared = await prepareSRC20({ name: name.value, symbol: symbol.value, cap: supply.value, mintAmount: mintAmount.value });
     createPhase.value = "signing";
@@ -168,20 +184,36 @@ async function createToken() {
       24_000,
       (hash) => { submittedHash.value = hash; createPhase.value = "pending"; }
     );
-    createdProgram.value = deployment.programId;
+    createdProgram.value = deployment.confirmedProgramId;
     createPhase.value = "confirmed";
-    toast.success("SRC20 created.");
+    if (deployment.confirmedProgramId) toast.success("SRC20 created.");
+    else {
+      keepChainLock = true;
+      chainAction.hold(deployment.receipt.hash);
+      toast.success("Deployment confirmed. Verify its program ID in Explore before retrying.");
+    }
   } catch (cause) {
-    createPhase.value = "idle";
+    if (requiresTransactionReview(cause)) {
+      keepChainLock = true;
+      chainAction.hold(cause.transactionHash);
+      submittedHash.value = cause.transactionHash;
+      createPhase.value = "pending";
+    } else {
+      createPhase.value = "idle";
+    }
     toast.error(friendlyError(cause));
+  } finally {
+    if (!keepChainLock) release();
   }
 }
 
 async function submitCreator() {
   if (createPhase.value === "confirmed") {
     closeCreator();
-    addressInput.value = createdProgram.value ?? "";
-    await loadContract();
+    if (createdProgram.value) {
+      addressInput.value = createdProgram.value;
+      await loadContract();
+    }
     return;
   }
   await createToken();
@@ -209,7 +241,7 @@ onBeforeUnmount(() => {
   <main class="page minter-page">
     <header class="minter-heading">
       <div><h1>Minter</h1><p>Enter a contract address to mint SRC20.</p></div>
-      <button class="create-token-button" type="button" :disabled="mintBusy" @click="openCreator"><Plus :size="15" />Create SRC20</button>
+      <button class="create-token-button" type="button" :disabled="mintBusy || chainAction.busy.value" @click="openCreator"><Plus :size="15" />Create SRC20</button>
     </header>
 
     <section class="minter-shell">
@@ -248,11 +280,12 @@ onBeforeUnmount(() => {
               <div><dt>Network</dt><dd>{{ NETWORK.displayName }}</dd></div>
               <div><dt>Execution fee</dt><dd>Estimated at confirmation</dd></div>
             </dl>
-            <button class="mint-action" type="button" :disabled="loading || mintPhase === 'verifying' || mintPhase === 'signing' || mintPhase === 'pending' || mintExhausted" @click="mint">
+            <button class="mint-action" type="button" :disabled="loading || mintPhase === 'verifying' || mintPhase === 'signing' || mintPhase === 'pending' || mintExhausted || chainAction.busy.value" @click="mint">
               <LoaderCircle v-if="loading || mintPhase === 'verifying' || mintPhase === 'signing' || mintPhase === 'pending'" class="spin" :size="16" />
               <Check v-else-if="mintPhase === 'confirmed'" :size="16" />
               {{ mintLabel }}
             </button>
+            <a v-if="mintTransactionHash" class="mint-transaction" :href="mintTransactionUrl" target="_blank" rel="noreferrer">{{ mintPhase === 'pending' ? 'Verify pending transaction in Explore' : 'View transaction in Explore' }}</a>
             <p>Eligibility is checked again onchain before signing.</p>
           </aside>
         </section>
@@ -281,10 +314,10 @@ onBeforeUnmount(() => {
           <div class="token-modal-decimals"><span>Decimals</span><strong>18</strong><LockKeyhole :size="14" /></div>
           <p class="token-modal-note">The token package is compiled and deployed as an SVM Mini Contract.</p>
           <p v-if="createdProgram" class="token-modal-result" role="status"><Check :size="14" /><span>Created</span><code>{{ short(createdProgram, 12, 10) }}</code><button type="button" aria-label="Copy created contract" @click="copy(createdProgram)"><Copy :size="13" /></button></p>
-          <p v-else-if="submittedHash" class="token-modal-result token-modal-result--pending" role="status"><LoaderCircle class="spin" :size="14" /><span>Transaction submitted</span><code>{{ short(submittedHash, 10, 8) }}</code></p>
+          <a v-else-if="submittedHash" class="token-modal-result token-modal-result--pending" role="status" :href="submittedTransactionUrl" target="_blank" rel="noreferrer"><Check v-if="createPhase === 'confirmed'" :size="14" /><LoaderCircle v-else class="spin" :size="14" /><span>{{ createPhase === 'confirmed' ? 'Confirmed · open in Explore' : 'Transaction submitted' }}</span><code>{{ short(submittedHash, 10, 8) }}</code></a>
           <div class="token-modal-actions">
             <button class="token-modal-cancel" type="button" :disabled="createBusy" @click="closeCreator">Cancel</button>
-            <button class="token-modal-submit" type="submit" :disabled="createBusy"><LoaderCircle v-if="createBusy" class="spin" :size="15" /><Check v-else-if="createPhase === 'confirmed'" :size="15" /><Plus v-else :size="15" />{{ createLabel }}</button>
+            <button class="token-modal-submit" type="submit" :disabled="createBusy || chainAction.busy.value"><LoaderCircle v-if="createBusy" class="spin" :size="15" /><Check v-else-if="createPhase === 'confirmed'" :size="15" /><Plus v-else :size="15" />{{ createLabel }}</button>
           </div>
         </form>
       </div>
@@ -353,9 +386,11 @@ onBeforeUnmount(() => {
 .token-modal-error, .token-modal-result { min-height: 40px; margin: 0 20px 18px; padding: 8px 11px; border: 1px solid currentColor; display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 9px; }
 .token-modal-error { color: var(--red); }
 .token-modal-result { color: var(--green); }
+.token-modal-result[href] { text-decoration: none; }
 .token-modal-result code { margin-left: auto; color: var(--muted); }
 .token-modal-result button { border: 0; background: transparent; color: inherit; }
 .token-modal-result--pending { color: var(--muted); }
+.mint-transaction { display: block; margin-top: 9px; color: var(--blue); font-size: 10px; text-align: center; }
 .token-modal-submit { width: 100%; min-height: 46px; border: 0; border-top: 1px solid var(--ink); background: var(--blue); color: #fff; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 12px; font-weight: 620; }
 .modal-fade-enter-active, .modal-fade-leave-active { transition: opacity 150ms ease; }
 .modal-fade-enter-active .token-modal, .modal-fade-leave-active .token-modal { transition: transform 150ms ease, opacity 150ms ease; }

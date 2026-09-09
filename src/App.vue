@@ -9,13 +9,16 @@ import AppSurface from "@/components/AppSurface.vue";
 import AppLibrary from "@/components/AppLibrary.vue";
 import AppToast from "@/components/AppToast.vue";
 import { useWallet } from "@/composables/useWallet";
-import { apps, appForPath, explorerBase, type AppId } from "@/lib/apps";
+import { useChainAction } from "@/composables/useChainAction";
+import { apps, appForPath, explorerBase, explorerURL, type AppId } from "@/lib/apps";
 import { NETWORK } from "@/lib/config";
 import { short } from "@/lib/protocol";
 import { toast } from "@/composables/useToast";
 import { formatWalletBalance } from "@/lib/walletBalance";
 
 const wallet = useWallet();
+const chainAction = useChainAction();
+const recoveryUrl = computed(() => chainAction.unresolvedHash.value ? explorerURL(`/tx/${chainAction.unresolvedHash.value}`) : "");
 const mobileQuery = window.matchMedia('(max-width: 760px)');
 const mobile = ref(mobileQuery.matches);
 const now = ref(new Date());
@@ -82,7 +85,7 @@ function resize(event: MediaQueryListEvent) {
   if (event.matches) { accountMenu.value = false; powerConfirm.value = false; }
   else {
     const keep = active.value ?? apps.filter(app => windows[app.id].open).sort((a, b) => windows[b.id].order - windows[a.id].order)[0]?.id;
-    if (keep) { closeOtherWindows(keep); active.value = keep; history.replaceState(null, '', `#${windows[keep].path}`); }
+    if (keep) { closeOtherWindows(keep); windows[keep].minimized = false; active.value = keep; history.replaceState(null, '', `#${windows[keep].path}`); }
   }
 }
 watch(wallet.connected, connected => {
@@ -125,6 +128,7 @@ onBeforeUnmount(() => { clearInterval(clock); clearInterval(balanceClock); clear
         <div class="os-menu-left"><div class="os-brand"><img src="/swaputer-mark.png" alt="" /><b>Swaputer</b></div></div>
         <div class="os-menu-right"><WalletWidget v-if="!mobile" :balance="wallet.balance.value" :loading="wallet.balanceLoading.value" :network="NETWORK.displayName" @open="accountMenu = !accountMenu; wallet.refreshBalance()" /><time>{{ time }}</time><span class="os-status-icons" aria-hidden="true"><Signal :size="15" /><Wifi :size="15" /><BatteryFull :size="17" /></span><button v-if="!mobile" class="os-power-control" type="button" aria-label="Power off" @click="powerConfirm = true; accountMenu = false"><Power :size="15" /></button></div>
       </header>
+      <a v-if="chainAction.unresolvedHash.value" class="os-transaction-recovery" :href="recoveryUrl" target="_blank" rel="noreferrer">Confirmation unknown · verify the submitted transaction in Explore before retrying</a>
       <div v-if="accountMenu" class="os-menu-dismiss" @click="accountMenu = false"></div>
       <aside v-if="accountMenu && !mobile" class="os-wallet-panel" role="dialog" aria-label="Wallet details">
         <header class="os-wallet-panel-header">
@@ -149,7 +153,7 @@ onBeforeUnmount(() => { clearInterval(clock); clearInterval(balanceClock); clear
         <div class="os-home-content" :class="{ 'mobile-hidden': mobile && active }">
           <div class="os-desktop-icons"><button v-for="app in apps" :key="app.id" class="os-desktop-app" @click="open(app.id)" @keydown.enter.prevent="open(app.id)" @keydown.space.prevent="open(app.id)"><AppIcon :app="app.id" /><span>{{ app.name }}</span></button><button class="os-desktop-app os-library-desktop-icon" @click="library = true" @keydown.enter.prevent="library = true"><AppIcon app="applications" /><span>Applications</span></button></div>
         </div>
-        <template v-for="(app, index) in apps" :key="app.id"><AppWindow v-if="windows[app.id].mounted" v-show="windows[app.id].open && !windows[app.id].minimized && (!mobile || active === app.id)" :app="app.id" :name="app.name" :index="index" :order="windows[app.id].order" :active="active === app.id" :mobile="mobile" @focus="focus(app.id)" @close="hide(app.id, true)" @minimize="hide(app.id)"><AppSurface :key="wallet.session.value" :app="app.id" :path="windows[app.id].path" @navigate="navigated(app.id, $event)" /></AppWindow></template>
+        <template v-for="app in apps" :key="app.id"><AppWindow v-if="windows[app.id].mounted" v-show="windows[app.id].open && !windows[app.id].minimized && (!mobile || active === app.id)" :app="app.id" :name="app.name" :order="windows[app.id].order" :active="active === app.id" :mobile="mobile" @focus="focus(app.id)" @close="hide(app.id, true)" @minimize="hide(app.id)"><AppSurface :key="wallet.session.value" :app="app.id" :path="windows[app.id].path" @navigate="navigated(app.id, $event)" /></AppWindow></template>
       </main>
       <nav v-if="!mobile" class="os-dock" aria-label="Application dock"><button v-for="app in apps" :key="app.id" :aria-label="`Open ${app.name}`" :class="{ 'dock-active': active === app.id }" @click="open(app.id)"><AppIcon :app="app.id" /><span class="os-dock-tooltip">{{ app.name }}</span><i v-if="windows[app.id].open"></i></button><button aria-label="Applications" :class="{ 'dock-active': library }" @click="library = !library"><AppIcon app="applications" /><span class="os-dock-tooltip">Applications</span></button></nav>
       <button v-if="mobile && active && !library && !switcher" class="os-mobile-switcher" aria-label="Running apps" @click="switcher = true"><Layers :size="17" /></button>

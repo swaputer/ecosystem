@@ -8,16 +8,18 @@ import TablePagination from "@/components/TablePagination.vue";
 import MarketOrderRow from "@/components/MarketOrderRow.vue";
 import MarketDialog from "@/components/MarketDialog.vue";
 import { useWallet } from "@/composables/useWallet";
+import { useChainAction } from "@/composables/useChainAction";
 import { toast } from "@/composables/useToast";
 import { explorerApi, formatAge, formatUnitsExact, shortHex, subscribeExplorer, type MarketOrder, type MarketSummary, type MarketTrade, type TokenSummary } from "@/lib/explorer";
 import { cancelMarketOrder, createMarketForToken, createOrder, marketBindingFor, quotePriceWei, settleOrder } from "@/lib/market";
-import { friendlyError, readAccountId, readMiniUint, readProtocolFeeConfig, type ProtocolFeeConfig } from "@/lib/protocol";
+import { friendlyError, readAccountId, readMiniUint, readProtocolFeeConfig, requiresTransactionReview, type ProtocolFeeConfig } from "@/lib/protocol";
 import { useCursorTable } from "@/composables/useCursorTable";
 import { MARKET } from "@/lib/config";
 import { nativeAmount } from "@/lib/format";
 
 const route = useRoute();
 const wallet = useWallet();
+const chainAction = useChainAction();
 const program = computed(() => String(route.params.program));
 const token = ref<TokenSummary | null>(null);
 const summary = ref<MarketSummary | null>(null);
@@ -32,6 +34,8 @@ const vmBudget = ref(formatEther(MARKET.defaultVMInputWei));
 const advanced = ref(false);
 const loading = ref(true);
 const busy = ref(false);
+const actionBusy = computed(() => busy.value || chainAction.busy.value);
+const recoveryUrl = computed(() => chainAction.unresolvedHash.value ? explorerURL(`/tx/${chainAction.unresolvedHash.value}`) : "");
 const marketModal = ref(false);
 const marketPhase = ref<"idle" | "deploying-escrow" | "creating-market" | "confirmed">("idle");
 const pageSize = 25;
@@ -176,11 +180,15 @@ function openCreate(direction: "buy" | "sell" = "sell") {
 }
 
 async function submitOrder() {
-  if (busy.value) return;
+  if (busy.value || chainAction.busy.value) return;
+  let release: (() => void) | null = null;
+  let keepChainLock = false;
   busy.value = true;
   try {
     if (!wallet.address.value || !wallet.signer.value) { await ensureWallet(); return; }
     if (!summary.value || !draft.value.valid) return;
+    release = chainAction.acquire();
+    if (!release) { toast.error("Another wallet transaction is already in progress."); return; }
     const target = program.value;
     const direction = createSide.value;
     await createOrder(wallet.signer.value, wallet.address.value, target, summary.value.marketAddress, summary.value.escrowId,
@@ -193,12 +201,17 @@ async function submitOrder() {
     }
     toast.success(`${direction === "buy" ? "Buy" : "Sell"} order created.`);
     await Promise.all([refreshTables(), refreshBalance()]);
-  } catch (cause) { toast.error(friendlyError(cause)); }
-  finally { busy.value = false; }
+  } catch (cause) {
+    if (requiresTransactionReview(cause)) { keepChainLock = true; chainAction.hold(cause.transactionHash); }
+    toast.error(friendlyError(cause));
+  }
+  finally { if (!keepChainLock) release?.(); busy.value = false; }
 }
 
 async function confirmOrder() {
-  if (busy.value || !selectedOrder.value) return;
+  if (busy.value || chainAction.busy.value || !selectedOrder.value) return;
+  let release: (() => void) | null = null;
+  let keepChainLock = false;
   busy.value = true;
   try {
     if (!wallet.address.value || !wallet.signer.value) { await ensureWallet(); return; }
@@ -207,27 +220,39 @@ async function confirmOrder() {
       || order.marketAddress.toLowerCase() !== summary.value.marketAddress.toLowerCase()) return;
     const own = isOwnOrder(order);
     if (!own && order.expiry * 1000 <= Date.now()) { toast.error("This order has expired."); return; }
+    release = chainAction.acquire();
+    if (!release) { toast.error("Another wallet transaction is already in progress."); return; }
     if (own) await cancelMarketOrder(wallet.signer.value, wallet.address.value, order, summary.value.escrowId);
     else await settleOrder(wallet.signer.value, wallet.address.value, order, summary.value.escrowId);
     selectedOrder.value = null;
     toast.success(own ? "Order cancelled." : "Order settled.");
     await Promise.all([refreshTables(), refreshBalance()]);
-  } catch (cause) { toast.error(friendlyError(cause)); }
-  finally { busy.value = false; }
+  } catch (cause) {
+    if (requiresTransactionReview(cause)) { keepChainLock = true; chainAction.hold(cause.transactionHash); }
+    toast.error(friendlyError(cause));
+  }
+  finally { if (!keepChainLock) release?.(); busy.value = false; }
 }
 
 async function deployMarket() {
-  if (busy.value) return;
+  if (busy.value || chainAction.busy.value) return;
+  let release: (() => void) | null = null;
+  let keepChainLock = false;
   busy.value = true;
   try {
     if (!wallet.address.value || !wallet.signer.value) { await ensureWallet(); return; }
+    release = chainAction.acquire();
+    if (!release) { toast.error("Another wallet transaction is already in progress."); return; }
     await createMarketForToken(wallet.signer.value!, wallet.address.value!, program.value, (phase) => { marketPhase.value = phase; });
     marketPhase.value = "confirmed";
     toast.success("SRC20 market created.");
     await load();
     marketModal.value = false;
-  } catch (cause) { toast.error(friendlyError(cause)); marketPhase.value = "idle"; }
-  finally { busy.value = false; }
+  } catch (cause) {
+    if (requiresTransactionReview(cause)) { keepChainLock = true; chainAction.hold(cause.transactionHash); }
+    toast.error(friendlyError(cause)); marketPhase.value = "idle";
+  }
+  finally { if (!keepChainLock) release?.(); busy.value = false; }
 }
 
 function actionLabel(order: MarketOrder): string {
@@ -264,9 +289,10 @@ onBeforeUnmount(() => {
     <RouterLink class="market-back" to="/market"><ArrowLeft :size="15" />All markets</RouterLink>
     <header class="market-token-heading">
       <div class="market-token-identity"><div class="market-token-title"><h1>{{ symbol }}</h1><p>{{ token?.name || 'SRC20' }}</p></div><div class="market-contract-line"><a :href="explorerURL(`/contract/${program}`)" target="_blank" rel="noopener noreferrer"><code>{{ shortHex(program, 15, 12) }}</code></a><button class="market-copy" type="button" aria-label="Copy contract address" @click="copyContract"><Check v-if="copied" :size="15" /><Copy v-else :size="15" /></button></div></div>
-      <div v-if="summary" class="market-heading-actions"><button class="market-offer-button" type="button" :disabled="busy" @click="openCreate('buy')">Make an offer</button><button class="market-create-button" type="button" :disabled="busy" @click="openCreate('sell')"><Plus :size="15" />List tokens</button></div>
-      <button v-else-if="token && !loading" class="market-create-button" type="button" @click="marketModal = true"><Plus :size="15" />Create market</button>
+      <div v-if="summary" class="market-heading-actions"><button class="market-offer-button" type="button" :disabled="actionBusy" @click="openCreate('buy')">Make an offer</button><button class="market-create-button" type="button" :disabled="actionBusy" @click="openCreate('sell')"><Plus :size="15" />List tokens</button></div>
+      <button v-else-if="token && !loading" class="market-create-button" type="button" :disabled="actionBusy" @click="marketModal = true"><Plus :size="15" />Create market</button>
     </header>
+    <a v-if="chainAction.unresolvedHash.value" class="market-recovery" :href="recoveryUrl" target="_blank" rel="noreferrer">Confirmation unknown · verify transaction {{ shortHex(chainAction.unresolvedHash.value, 10, 8) }} in Explore before retrying</a>
     <p v-if="loading" class="protocol-loading">Loading market…</p>
 
     <template v-if="summary">
@@ -287,29 +313,29 @@ onBeforeUnmount(() => {
           </table></div>
           <div v-else class="market-order-list" role="table" :aria-label="view === 'mine' ? 'My orders' : `${side === 'buy' ? 'Buy' : 'Sell'} orders`">
             <div class="market-order-head" role="row"><span role="columnheader">Amount</span><span role="columnheader">Total price</span><span role="columnheader">Maker</span><span role="columnheader">Expires</span><span role="columnheader" aria-label="Action"></span></div>
-            <div role="rowgroup"><MarketOrderRow v-for="order in visibleOrders" :key="order.orderId" :order="order" :symbol="symbol" :decimals="decimals" :expiry="expiresIn(order.expiry)" :action="actionLabel(order)" :mine="isOwnOrder(order)" :disabled="busy || activeTable.loading || (!isOwnOrder(order) && order.expiry * 1000 <= now)" @select="selectedOrder = $event" /></div>
+            <div role="rowgroup"><MarketOrderRow v-for="order in visibleOrders" :key="order.orderId" :order="order" :symbol="symbol" :decimals="decimals" :expiry="expiresIn(order.expiry)" :action="actionLabel(order)" :mine="isOwnOrder(order)" :disabled="actionBusy || activeTable.loading || (!isOwnOrder(order) && order.expiry * 1000 <= now)" @select="selectedOrder = $event" /></div>
           </div>
         </div>
         <TablePagination v-if="activeTable.page > 1 || activeTable.nextCursor" :busy="activeTable.loading" :page="activeTable.page" :has-next="Boolean(activeTable.nextCursor)" :label="range" @previous="activeTable.previous" @next="activeTable.next" />
       </section>
     </template>
-    <section v-else-if="token && !loading" class="market-missing"><h2>No market yet</h2><p>Create a market for {{ token.symbol || 'this SRC20' }} to start trading.</p><button @click="marketModal = true"><Plus :size="15" />Create SRC20 market</button></section>
+    <section v-else-if="token && !loading" class="market-missing"><h2>No market yet</h2><p>Create a market for {{ token.symbol || 'this SRC20' }} to start trading.</p><button :disabled="actionBusy" @click="marketModal = true"><Plus :size="15" />Create SRC20 market</button></section>
 
-    <MarketDialog v-if="createModal && summary" :title="createSide === 'sell' ? 'List tokens' : 'Make an offer'" :busy="busy" @close="createModal = false">
+    <MarketDialog v-if="createModal && summary" :title="createSide === 'sell' ? 'List tokens' : 'Make an offer'" :busy="actionBusy" @close="createModal = false">
       <form class="market-composer market-composer-dialog" @submit.prevent="submitOrder">
-          <div class="market-side-switch"><button type="button" :disabled="busy" :aria-pressed="createSide === 'buy'" :class="{ active: createSide === 'buy' }" @click="createSide = 'buy'">Buy</button><button type="button" :disabled="busy" :aria-pressed="createSide === 'sell'" :class="{ active: createSide === 'sell' }" @click="createSide = 'sell'">Sell</button></div>
-          <label><span>Amount</span><small v-if="wallet.address.value">{{ balanceLoading ? 'Loading balance…' : tokenBalance === null ? 'Balance unavailable' : `Balance: ${formatUnitsExact(tokenBalance.toString(), decimals, 5)} ${symbol}` }}</small><div><input ref="amountInput" v-model="amount" :disabled="busy" inputmode="decimal" placeholder="0.0" /><b>{{ symbol }}</b></div></label>
-          <label><span>Price per token</span><div><input v-model="price" :disabled="busy" inputmode="decimal" placeholder="0.0" /><b>ETH</b></div></label>
+          <div class="market-side-switch"><button type="button" :disabled="actionBusy" :aria-pressed="createSide === 'buy'" :class="{ active: createSide === 'buy' }" @click="createSide = 'buy'">Buy</button><button type="button" :disabled="actionBusy" :aria-pressed="createSide === 'sell'" :class="{ active: createSide === 'sell' }" @click="createSide = 'sell'">Sell</button></div>
+          <label><span>Amount</span><small v-if="wallet.address.value">{{ balanceLoading ? 'Loading balance…' : tokenBalance === null ? 'Balance unavailable' : `Balance: ${formatUnitsExact(tokenBalance.toString(), decimals, 5)} ${symbol}` }}</small><div><input ref="amountInput" v-model="amount" :disabled="actionBusy" inputmode="decimal" placeholder="0.0" /><b>{{ symbol }}</b></div></label>
+          <label><span>Price per token</span><div><input v-model="price" :disabled="actionBusy" inputmode="decimal" placeholder="0.0" /><b>ETH</b></div></label>
           <dl><div><dt>Total price</dt><dd>{{ nativeAmount(draft.total, 18) }} ETH</dd></div></dl>
-          <button class="market-advanced" type="button" :disabled="busy" :aria-expanded="advanced" @click="advanced = !advanced">Advanced settings <ChevronDown :size="14" /></button>
-          <label v-if="advanced"><span>VM execution budget</span><div><input v-model="vmBudget" :disabled="busy" inputmode="decimal" /><b>ETH</b></div></label>
+          <button class="market-advanced" type="button" :disabled="actionBusy" :aria-expanded="advanced" @click="advanced = !advanced">Advanced settings <ChevronDown :size="14" /></button>
+          <label v-if="advanced"><span>VM execution budget</span><div><input v-model="vmBudget" :disabled="actionBusy" inputmode="decimal" /><b>ETH</b></div></label>
           <dl v-if="advanced && feeConfig"><div><dt>Protocol fee ({{ feeConfig.feeBps / 100 }}%)</dt><dd>{{ nativeAmount(draftProtocolFee, 18) }} ETH</dd></div></dl>
-          <button class="market-submit" type="button" :disabled="busy || (wallet.address.value ? !draft.valid : false)" @click="submitOrder"><LoaderCircle v-if="busy" class="spin" :size="17" /><Wallet v-else-if="!wallet.address.value" :size="16" /><Plus v-else :size="16" />{{ busy ? 'Confirming…' : wallet.address.value ? (createSide === 'sell' ? 'List tokens' : 'Make an offer') : 'Connect wallet' }}</button>
+          <button class="market-submit" type="button" :disabled="actionBusy || (wallet.address.value ? !draft.valid : false)" @click="submitOrder"><LoaderCircle v-if="busy" class="spin" :size="17" /><Wallet v-else-if="!wallet.address.value" :size="16" /><Plus v-else :size="16" />{{ busy ? 'Confirming…' : wallet.address.value ? (createSide === 'sell' ? 'List tokens' : 'Make an offer') : 'Connect wallet' }}</button>
           <p>{{ createSide === 'buy' ? 'ETH is held in escrow until filled or cancelled.' : `${symbol} is held in escrow until filled or cancelled.` }}</p>
 
       </form>
     </MarketDialog>
-    <MarketDialog v-if="selectedOrder" :title="confirmationTitle" :busy="busy" @close="selectedOrder = null">
+    <MarketDialog v-if="selectedOrder" :title="confirmationTitle" :busy="actionBusy" @close="selectedOrder = null">
       <p class="market-confirm-order">Order #{{ selectedOrder.orderId }}</p>
       <div class="market-confirm-quantity"><strong>{{ formatUnits(selectedOrder.amount, decimals) }}</strong><span>{{ symbol }}</span></div>
       <dl class="market-confirm-details">
@@ -322,11 +348,11 @@ onBeforeUnmount(() => {
         <div v-if="selectedPayment > 0n"><dt>Wallet payment</dt><dd>{{ formatEther(selectedPayment) }} ETH</dd></div>
       </dl>
       <p class="market-confirm-note">{{ selectedIsOwn ? 'Unfilled escrow is returned when you cancel.' : 'This order is filled in full.' }} Network gas is additional.</p>
-      <button class="market-submit" type="button" :disabled="busy || (!selectedIsOwn && selectedExpired)" @click="confirmOrder"><LoaderCircle v-if="busy" class="spin" :size="17" />{{ busy ? 'Confirming…' : !selectedIsOwn && selectedExpired ? 'Order expired' : !wallet.address.value ? 'Connect wallet' : confirmationLabel }}</button>
+      <button class="market-submit" type="button" :disabled="actionBusy || (!selectedIsOwn && selectedExpired)" @click="confirmOrder"><LoaderCircle v-if="busy" class="spin" :size="17" />{{ busy ? 'Confirming…' : !selectedIsOwn && selectedExpired ? 'Order expired' : !wallet.address.value ? 'Connect wallet' : confirmationLabel }}</button>
     </MarketDialog>
-    <MarketDialog v-if="marketModal" title="Create SRC20 market" :busy="busy" @close="marketModal = false">
+    <MarketDialog v-if="marketModal" title="Create SRC20 market" :busy="actionBusy" @close="marketModal = false">
       <p class="market-confirm-note">Create a market for {{ token?.symbol || 'this SRC20' }}. Deploying the escrow and registering the market requires two wallet transactions.</p>
-      <button class="market-submit" type="button" :disabled="busy" @click="deployMarket"><LoaderCircle v-if="busy" class="spin" :size="16" />{{ !wallet.address.value ? 'Connect wallet' : marketPhase === 'creating-market' ? 'Creating market…' : marketPhase === 'deploying-escrow' ? 'Deploying escrow…' : 'Create market' }}</button>
+      <button class="market-submit" type="button" :disabled="actionBusy" @click="deployMarket"><LoaderCircle v-if="busy" class="spin" :size="16" />{{ !wallet.address.value ? 'Connect wallet' : marketPhase === 'creating-market' ? 'Creating market…' : marketPhase === 'deploying-escrow' ? 'Deploying escrow…' : 'Create market' }}</button>
     </MarketDialog>
   </main>
 </template>
@@ -341,6 +367,7 @@ onBeforeUnmount(() => {
 .market-gallery-page .market-token-heading p { margin: 0; font-size: 13px; overflow-wrap: anywhere; }
 .market-contract-line { margin-top: 8px; }
 .market-heading-actions { gap: 8px; }
+.market-recovery { display: block; margin: 0 0 14px; padding: 9px 11px; border: 1px solid #b57400; color: #7a4e00; font-size: 10px; line-height: 1.4; text-decoration: none; }
 .market-gallery-page .market-offer-button,
 .market-gallery-page .market-create-button { min-height: 34px; padding: 0 12px; border-radius: 6px; font-size: 12px; }
 .market-gallery-tabs { gap: 24px; }

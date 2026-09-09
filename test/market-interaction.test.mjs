@@ -18,12 +18,15 @@ const seed = { orderId: '1', programId: program, marketAddress, maker: `0x${'44'
 
 function setup({ connected = true, settle = async () => {}, create = async () => {} } = {}) {
   const calls = []; const errors = [];
+  const chainBusy = vue.ref(false);
+  const chainAction = { busy: chainBusy, unresolvedHash: vue.ref(null), acquire: () => { if (chainBusy.value) return null; chainBusy.value = true; return () => { chainBusy.value = false; }; }, hold: hash => { chainAction.unresolvedHash.value = hash; chainBusy.value = true; } };
   const wallet = { address: vue.ref(connected ? actor : null), signer: vue.shallowRef(connected ? {} : null), connect: async () => { calls.push('connect'); wallet.address.value = actor; wallet.signer.value = {}; } };
   const modules = {
     vue: { ...vue, watch: () => {}, onMounted: () => {}, onBeforeUnmount: () => {} },
     ethers,
     'vue-router': { useRoute: () => ({ params: { program }, query: {} }) },
     '@/composables/useWallet': { useWallet: () => wallet },
+    '@/composables/useChainAction': { useChainAction: () => chainAction },
     '@/composables/useToast': { toast: { success() {}, error: message => errors.push(message) } },
     '@/composables/useCursorTable': { useCursorTable: () => vue.shallowReactive({ page: 1, items: [], loading: false, reset() {}, load: async () => {} }) },
     '@/lib/config': { MARKET: { defaultVMInputWei: 10n, defaultExpirySeconds: 3600 } },
@@ -33,7 +36,8 @@ function setup({ connected = true, settle = async () => {}, create = async () =>
       cancelMarketOrder: async () => { calls.push('cancel'); },
       createOrder: async (...args) => { calls.push('create'); return create(...args); }
     },
-    '@/lib/protocol': { readAccountId: async () => actor, readMiniUint: async () => 0n, friendlyError: e => e.message }
+    '@/lib/apps': { explorerURL: path => path },
+    '@/lib/protocol': { readAccountId: async () => actor, readMiniUint: async () => 0n, friendlyError: e => e.message, requiresTransactionReview: () => false }
   };
   const context = { exports: {}, require: name => modules[name] ?? {} };
   vm.runInNewContext(compiled, context);

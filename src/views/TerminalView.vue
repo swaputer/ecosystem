@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { nextTick, onMounted, ref } from "vue";
-import { BROWSER_HELP, browserErrorLines, executeBrowserCommand } from "@swaputer-labs/cli/browser";
+import { BROWSER_HELP, browserErrorLines, executeBrowserCommand } from "@/lib/browserCli";
 import { CLI_DEPLOYMENT, NETWORK } from "@/lib/config";
 
 interface TerminalEntry {

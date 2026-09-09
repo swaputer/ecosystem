@@ -8,6 +8,12 @@ export default defineConfig(({ mode }) => {
     plugins: [vue()],
     resolve: { alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
+      "@swaputer-cli/errors": fileURLToPath(new URL("./node_modules/@swaputer-labs/cli/dist/src/errors.js", import.meta.url)),
+      "@swaputer-cli/inspect": fileURLToPath(new URL("./node_modules/@swaputer-labs/cli/dist/src/inspect.js", import.meta.url)),
+      "@swaputer-cli/json": fileURLToPath(new URL("./node_modules/@swaputer-labs/cli/dist/src/json.js", import.meta.url)),
+      "@swaputer-cli/package": fileURLToPath(new URL("./node_modules/@swaputer-labs/cli/package.json", import.meta.url)),
+      "@swaputer-cli/rpc": fileURLToPath(new URL("./node_modules/@swaputer-labs/cli/dist/src/rpc.js", import.meta.url)),
+      "@swaputer-cli/types": fileURLToPath(new URL("./node_modules/@swaputer-labs/cli/dist/src/types.js", import.meta.url)),
       "buffer": fileURLToPath(new URL("./node_modules/buffer/index.js", import.meta.url)),
       "node:crypto": fileURLToPath(new URL("./src/lib/nodeCryptoShim.ts", import.meta.url))
     } },

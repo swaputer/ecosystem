@@ -4,13 +4,15 @@ import { formatEther, parseEther } from "ethers";
 import { ChevronDown, Copy, LoaderCircle } from "@lucide/vue";
 import AssetGlyph from "@/components/AssetGlyph.vue";
 import { useWallet } from "@/composables/useWallet";
+import { useChainAction } from "@/composables/useChainAction";
 import { toast } from "@/composables/useToast";
 import { SETH } from "@/lib/config";
 import { nativeAmount } from "@/lib/format";
-import { bridgeETH, friendlyError, readProvider, readBridgeSnapshot, readProtocolFeeConfig, type BridgeSnapshot, type ProtocolFeeConfig } from "@/lib/protocol";
+import { bridgeETH, friendlyError, readProvider, readBridgeSnapshot, readProtocolFeeConfig, requiresTransactionReview, type BridgeSnapshot, type ProtocolFeeConfig } from "@/lib/protocol";
 
 type Direction = "deposit" | "redeem";
 const wallet = useWallet();
+const chainAction = useChainAction();
 const direction = ref<Direction>("deposit");
 const amount = ref("");
 const advanced = ref(false);
@@ -70,6 +72,7 @@ async function refresh() {
 }
 
 async function submit() {
+  if (phase.value === "signing" || phase.value === "pending" || chainAction.busy.value) return;
   if (!wallet.address.value || !wallet.signer.value) {
     await wallet.connect();
     return;
@@ -85,8 +88,11 @@ async function submit() {
   let budget: bigint;
   try { budget = advanced.value && vmBudget.value ? parseEther(vmBudget.value) : SETH.vmInputWei; }
   catch { toast.error("Enter a valid VM budget."); return; }
+  const release = chainAction.acquire();
+  if (!release) { toast.error("Another wallet transaction is already in progress."); return; }
   phase.value = "signing";
   transactionHash.value = null;
+  let keepChainLock = false;
   try {
     await bridgeETH(direction.value, wallet.signer.value, wallet.address.value, wallet.address.value, numericAmount.value, budget, (hash: string) => {
       transactionHash.value = hash;
@@ -97,8 +103,17 @@ async function submit() {
     toast.success("Bridge transaction confirmed.");
     await Promise.all([refresh(), wallet.refreshBalance()]);
   } catch (cause) {
-    phase.value = "idle";
+    if (requiresTransactionReview(cause)) {
+      keepChainLock = true;
+      chainAction.hold(cause.transactionHash);
+      transactionHash.value = cause.transactionHash;
+      phase.value = "pending";
+    } else {
+      phase.value = "idle";
+    }
     toast.error(friendlyError(cause));
+  } finally {
+    if (!keepChainLock) release();
   }
 }
 
@@ -138,7 +153,7 @@ const copyTransaction = () => { if (transactionHash.value) void navigator.clipbo
             </div>
           </div>
         </div>
-        <button class="primary-action" type="button" :disabled="phase === 'signing' || phase === 'pending'" @click="submit">
+        <button class="primary-action" type="button" :disabled="phase === 'signing' || phase === 'pending' || chainAction.busy.value" @click="submit">
           <LoaderCircle v-if="phase === 'signing' || phase === 'pending'" class="spin" :size="20" />{{ actionLabel }}
         </button>
         <button class="advanced-row" type="button" @click="advanced = !advanced">

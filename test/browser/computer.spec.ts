@@ -72,13 +72,17 @@ test('Terminal runs the browser-safe CLI commands and keeps execution read-only'
   await page.screenshot({ path: info.outputPath('terminal-mobile.png') });
   await command.fill('version');
   await command.press('Enter');
-  await expect(terminal).toContainText('@swaputer-labs/cli 0.1.2');
+  await expect(terminal).toContainText('Swaputer browser verifier 0.1.0');
+  await expect(terminal).toContainText('Verifier API: @swaputer-labs/cli 0.1.2');
   await command.fill('unknown');
   await command.press('Enter');
   await expect(terminal).toContainText('error: CLI_USAGE');
+  await command.fill('inspect not-a-transaction-hash');
+  await command.press('Enter');
+  await expect(terminal).toContainText('error: INVALID_TRANSACTION_HASH');
   await command.fill('clear');
   await command.press('Enter');
-  await expect(terminal).not.toContainText('@swaputer-labs/cli 0.1.2');
+  await expect(terminal).not.toContainText('Swaputer browser verifier 0.1.0');
   expect(await page.evaluate(() => (window as any).__walletCalls)).not.toContain('eth_sendTransaction');
 });
 test('wallet rejection stays on standby and changing accounts locks the desktop', async ({ page }) => {
@@ -171,6 +175,14 @@ test('window moves, resizes, maximizes, closes and reopens', async ({ page }) =>
   }).toBeLessThanOrEqual(1);
   const recentered = (await frame.boundingBox())!;
   expect(Math.abs(recentered.y + recentered.height / 2 - (48 + (840 - 48 - 112) / 2))).toBeLessThanOrEqual(1);
+  const recenteredBar = (await bar.boundingBox())!;
+  await page.mouse.move(recenteredBar.x + 180, recenteredBar.y + 20);
+  await page.mouse.down();
+  await page.mouse.move(recenteredBar.x + 180, viewport.height + 400);
+  await page.mouse.up();
+  const dock = (await page.getByRole('navigation', { name: 'Application dock' }).boundingBox())!;
+  const dockSafeFrame = (await frame.boundingBox())!;
+  expect(dock.y - (dockSafeFrame.y + dockSafeFrame.height)).toBeGreaterThanOrEqual(12);
   await frame.getByRole('button', { name: 'Toggle maximize' }).click();
   await expect(frame).toHaveClass(/is-maximized/);
   await frame.getByRole('button', { name: 'Close app', exact: true }).click(); await expect(frame).toBeHidden();
@@ -228,6 +240,20 @@ for (const width of [390, 320]) test(`mobile ${width}: apps are fullscreen, Home
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
   const content = await mint.locator('.os-window-content').evaluate(el => ({ scroll: el.scrollWidth, width: el.clientWidth }));
   expect(content.scroll).toBeLessThanOrEqual(content.width);
+});
+test('an app minimized from its mobile title bar is restored when the viewport becomes desktop', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await boot(page);
+  await page.locator('.os-desktop-app').filter({ hasText: /^Mint$/ }).click();
+  const mint = page.getByRole('region', { name: 'Mint app', exact: true });
+  await mint.getByRole('button', { name: 'Home', exact: true }).click();
+  await expect(mint).toBeHidden();
+
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await expect(mint).toBeVisible();
+  await expect(page.locator('.os-window')).toHaveCount(1);
+  const frame = (await mint.boundingBox())!;
+  expect(Math.abs(frame.x + frame.width / 2 - 640)).toBeLessThanOrEqual(1);
 });
 test('deep links open the corresponding App only after wallet connection', async ({ page }) => {
   await boot(page, '/#/minter?contract=0x1234');

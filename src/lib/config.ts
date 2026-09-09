@@ -1,5 +1,5 @@
 import activeRelease from "../../config/base-sepolia.json";
-import type { Hex, SwaputerDeployment } from "@swaputer-labs/cli/browser";
+import type { Hex, SwaputerDeployment } from "@swaputer-cli/types";
 import { resolveOfficialFeatureScope } from "./releaseScope";
 
 interface UniswapV4Release {
@@ -114,6 +114,7 @@ export const SETH = Object.freeze({
 });
 
 export const KERNEL_ABI = [
+  "event Events(bytes32 indexed worldId, uint64 indexed executionHeight, bytes payload)",
   "function eoaAccountId(address account) view returns (bytes32)",
   "function creatorNonce(bytes32 worldId, bytes32 creator) view returns (uint64)",
   "function contractAccountId(bytes32 worldId,bytes32 creator,uint64 creationNonce,bytes32 codeHash) pure returns (bytes32)",

@@ -51,9 +51,9 @@ The canonical brand mark is the exact `swaputer-mark.png` used by `explorer/apps
 
 ## Responsive contract
 
-Desktop and mobile preserve the same applications and flows. Mobile renders each function as a full-screen app, hides the desktop ETH balance, and does not render the Dock. Desktop retains the top-right ETH balance, independent movable windows, and Dock.
+Desktop and mobile preserve the same applications and flows. Mobile renders each function as a full-screen app, hides the desktop ETH balance, and does not render the Dock. Desktop retains the top-right ETH balance and Dock, and presents at most one centered application window at a time.
 
-Terminal is a read-only command surface backed by `@swaputer-labs/cli/browser`. It uses the configured Base Sepolia RPC endpoint, never accesses the wallet signer, and exposes only transaction inspection, receipt decoding, help, version and local screen clearing.
+Terminal is a read-only command surface provided by Computer's internal browser verifier adapter. It uses the configured Base Sepolia RPC endpoint, never accesses the wallet signer, and exposes only transaction inspection, receipt decoding, help, version and local screen clearing. Its pinned npm modules and supported boundary are recorded in [browser-cli-adapter.md](browser-cli-adapter.md).
 
 ## Application workbench
 

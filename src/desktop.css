@@ -79,7 +79,7 @@ button:focus-visible,a:focus-visible { outline:2px solid var(--blue);outline-off
 .os-dock button.dock-active i { background:var(--blue); }
 .os-dock-tooltip { position:absolute;bottom:calc(100% + 18px);left:50%;transform:translateX(-50%);padding:6px 9px;background:var(--surface);border:1px solid var(--os-line);box-shadow:2px 2px 0 #303b4130;font:11px var(--font-display);opacity:0;pointer-events:none; }
 .os-dock button:hover .os-dock-tooltip,.os-dock button:focus-visible .os-dock-tooltip { opacity:1; }
-.os-window { position:absolute;display:flex;flex-direction:column;border:1px solid var(--os-line);background:var(--surface);box-shadow:5px 5px 0 #303b4140;overflow:hidden;min-width:580px;min-height:340px;max-width:calc(100vw - 12px);max-height:calc(100dvh - 130px);animation:os-window-in .16s ease both; }
+.os-window { position:absolute;display:flex;flex-direction:column;border:1px solid var(--os-line);background:var(--surface);box-shadow:5px 5px 0 #303b4140;overflow:hidden;min-width:580px;min-height:240px;max-width:calc(100vw - 12px);max-height:calc(100dvh - 130px);animation:os-window-in .16s ease both; }
 .os-window.is-active { box-shadow:6px 6px 0 #303b4159; }
 .os-window.is-maximized { left:8px;top:8px;right:8px;bottom:100px;max-height:none; }
 .os-window-titlebar { height:38px;min-height:38px;position:relative;display:flex;align-items:center;justify-content:space-between;padding:0 12px;background:var(--os-chrome);border-bottom:1px solid var(--os-line);cursor:grab;touch-action:none;user-select:none; }
@@ -514,6 +514,17 @@ body .token-modal-submit:hover:not(:disabled) { background:linear-gradient(180de
 .terminal-prompt label { flex:none;padding-top:1px; }
 .terminal-prompt input { flex:1;min-width:0;padding:0;border:0;border-radius:0;outline:0;background:transparent;color:#fff;font:inherit;caret-color:#ff37c7;box-shadow:none; }
 .terminal-prompt input:disabled { opacity:.55; }
+.os-transaction-recovery { position:fixed;z-index:190;top:54px;left:50%;width:min(520px,calc(100vw - 28px));transform:translateX(-50%);padding:10px 14px;border:1px solid #f0b84f66;border-radius:11px;background:#20180ef2;box-shadow:0 14px 34px #0008;color:#ffd786;font:550 11px/1.4 var(--font-sans);text-align:center;text-decoration:none;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px); }
+.os-transaction-recovery:hover { border-color:#f0b84faa;color:#ffe5ad; }
+
+/* macOS keeps the arrow cursor over interface controls. Reserve text and
+   resize cursors for places where they communicate a distinct interaction. */
+@media(min-width:761px) {
+  .computer :is(button,a,summary,[role="button"]),
+  .computer .market-directory-table tbody tr,
+  .computer .os-window-titlebar,
+  .computer .os-window-titlebar:active { cursor:default!important; }
+}
 
 @media(max-width:760px) {
   .os-wallpaper img { filter:saturate(.85) contrast(1.05) brightness(.62); }
