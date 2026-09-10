@@ -6,24 +6,22 @@ import { resolveOfficialFeatureScope } from "../src/lib/releaseScope.ts";
 
 const registry = readFileSync(new URL("../src/lib/apps.ts", import.meta.url), "utf8");
 
-test("Base Sepolia and local releases preserve the existing application routes", () => {
-  for (const environment of ["local", "testnet"]) {
+test("official environments expose Market and sETH at first launch", () => {
+  for (const environment of ["local", "testnet", "mainnet", "production"]) {
     const scope = resolveOfficialFeatureScope(environment);
     assert.equal(scope.market, true);
     assert.equal(scope.seth, true);
   }
 });
 
-test("mainnet and unknown environments fail closed to the Stage 7M interface scope", () => {
-  for (const environment of ["mainnet", "production", ""]) {
-    assert.deepEqual(resolveOfficialFeatureScope(environment), {
-      explorer: true,
-      studio: true,
-      openMintMinter: true,
-      market: false,
-      seth: false
-    });
-  }
+test("unknown environments fail closed for transaction-bearing applications", () => {
+  assert.deepEqual(resolveOfficialFeatureScope(""), {
+    explorer: true,
+    studio: true,
+    openMintMinter: true,
+    market: false,
+    seth: false
+  });
 });
 
 test("the shared desktop and mobile app registry respects the release gates", () => {

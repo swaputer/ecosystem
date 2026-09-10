@@ -7,18 +7,17 @@ export interface OfficialFeatureScope {
 }
 
 /**
- * Stage 7M keeps the existing local/testnet application surface intact while
- * failing closed to the frozen core launch scope in every other environment.
- * A future mainnet manifest therefore cannot expose custody applications by
- * supplying their addresses alone.
+ * Market and sETH are part of the official first-launch surface. Unknown
+ * environments still fail closed instead of enabling transaction-bearing
+ * applications from an accidental or incomplete configuration.
  */
 export function resolveOfficialFeatureScope(environment: string): Readonly<OfficialFeatureScope> {
-  const applicationTestEnvironment = environment === "local" || environment === "testnet";
+  const officialEnvironment = ["local", "testnet", "mainnet", "production"].includes(environment);
   return Object.freeze({
     explorer: true,
     studio: true,
     openMintMinter: true,
-    market: applicationTestEnvironment,
-    seth: applicationTestEnvironment
+    market: officialEnvironment,
+    seth: officialEnvironment
   });
 }
