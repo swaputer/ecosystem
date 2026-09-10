@@ -4,7 +4,6 @@ export interface OfficialFeatureScope {
   readonly openMintMinter: true;
   readonly market: boolean;
   readonly seth: boolean;
-  readonly auction: false;
 }
 
 /**
@@ -20,7 +19,6 @@ export function resolveOfficialFeatureScope(environment: string): Readonly<Offic
     studio: true,
     openMintMinter: true,
     market: applicationTestEnvironment,
-    seth: applicationTestEnvironment,
-    auction: false
+    seth: applicationTestEnvironment
   });
 }

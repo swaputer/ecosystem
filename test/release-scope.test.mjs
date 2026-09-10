@@ -11,7 +11,6 @@ test("Base Sepolia and local releases preserve the existing application routes",
     const scope = resolveOfficialFeatureScope(environment);
     assert.equal(scope.market, true);
     assert.equal(scope.seth, true);
-    assert.equal(scope.auction, false);
   }
 });
 
@@ -22,8 +21,7 @@ test("mainnet and unknown environments fail closed to the Stage 7M interface sco
       studio: true,
       openMintMinter: true,
       market: false,
-      seth: false,
-      auction: false
+      seth: false
     });
   }
 });
