@@ -18,8 +18,7 @@ import {
   type Signer
 } from "ethers";
 import { decodeVMReceipt } from "@swaputer-labs/receipt-codec";
-import { HOOK_ABI, KERNEL_ABI, NETWORK, SETH, SETH_VAULT_ABI, SWAPVM, TRANSACTION_CONFIRMATIONS } from "./config";
-import { assertCanonicalTransactionReceipt } from "./transactionFinality";
+import { HOOK_ABI, KERNEL_ABI, NETWORK, SWAPVM, TRANSACTION_CONFIRMATIONS } from "./config";
 import {
   UNIVERSAL_ROUTER_ABI,
   encodeDirectSVMUniversalRouterSwap,
@@ -35,7 +34,6 @@ export const readProvider = new JsonRpcProvider(NETWORK.rpcUrl, NETWORK.chainId,
 
 export interface WalletConnection { readonly provider: BrowserProvider; readonly signer: Signer; readonly address: string }
 export interface TokenSnapshot { readonly name: string; readonly symbol: string; readonly decimals: number; readonly mintAmount: bigint; readonly cap: bigint; readonly totalSupply: bigint }
-export interface BridgeSnapshot { readonly balance: bigint; readonly totalSupply: bigint; readonly lockedEth: bigint; readonly backingSurplus: bigint; readonly solvent: boolean }
 export interface ProtocolFeeConfig { readonly feeBps: number; readonly controller: string }
 
 export function friendlyError(error: unknown): string {
@@ -294,14 +292,6 @@ export function requiresTransactionReview(error: unknown): error is TransactionS
   return error instanceof TransactionStatusUnknownError || error instanceof TransactionReviewRequiredError;
 }
 
-async function requireCanonicalConfirmation(receipt: ContractTransactionReceipt): Promise<ContractTransactionReceipt> {
-  try {
-    return await assertCanonicalTransactionReceipt(receipt, TRANSACTION_CONFIRMATIONS);
-  } catch (cause) {
-    throw new TransactionStatusUnknownError(receipt.hash, cause);
-  }
-}
-
 export async function waitForConfirmation(transaction: { hash: string; wait(confirmations?: number): Promise<ContractTransactionReceipt | null> }, onSubmitted?: (hash: string) => void) {
   onSubmitted?.(transaction.hash);
   let receipt: ContractTransactionReceipt | null;
@@ -319,7 +309,7 @@ export async function waitForConfirmation(transaction: { hash: string; wait(conf
       if (!replacement.cancelled && replacement.receipt?.status === 1) {
         const replacementHash = replacement.replacement?.hash || replacement.receipt.hash;
         if (replacementHash && replacementHash !== transaction.hash) onSubmitted?.(replacementHash);
-        return requireCanonicalConfirmation(replacement.receipt);
+        return replacement.receipt;
       }
       if (replacement.cancelled) throw new Error("The transaction was cancelled in the wallet.");
       if (replacement.receipt?.status === 0) throw new Error("The replacement transaction was confirmed but failed.");
@@ -329,7 +319,7 @@ export async function waitForConfirmation(transaction: { hash: string; wait(conf
   }
   if (!receipt) throw new TransactionStatusUnknownError(transaction.hash);
   if (receipt.status !== 1) throw new Error("The transaction was confirmed but failed.");
-  return requireCanonicalConfirmation(receipt);
+  return receipt;
 }
 
 export async function writeMiniContract(
@@ -359,60 +349,18 @@ export async function mintSRC20(signer: Signer, actor: string, target: string, o
   return writeMiniContract(signer, actor, target, "mint(bytes32)", ["bytes32"], [accountId], 2_000, onSubmitted);
 }
 
-function vault(runner: ContractRunner = readProvider): Contract {
-  if (!SETH.enabled || !isAddress(SETH.vaultAddress)) throw new Error("The mainnet sETH bridge is not configured for this build.");
-  return new Contract(getAddress(SETH.vaultAddress), SETH_VAULT_ABI, runner);
-}
-
-async function verifyBridgeBindings(contract: Contract): Promise<void> {
-  const [router, kernel, worldId, seth, codeHash] = await Promise.all([
-    contract.getFunction("router").staticCall() as Promise<string>, contract.getFunction("kernel").staticCall() as Promise<string>,
-    contract.getFunction("worldId").staticCall() as Promise<string>, contract.getFunction("seth").staticCall() as Promise<string>,
-    contract.getFunction("sethCodeHash").staticCall() as Promise<string>
-  ]);
-  if (getAddress(router) !== getAddress(SWAPVM.router) || getAddress(kernel) !== getAddress(SWAPVM.kernel)
-    || worldId.toLowerCase() !== SWAPVM.worldId.toLowerCase() || seth.toLowerCase() !== SETH.programId.toLowerCase()
-    || codeHash.toLowerCase() !== SETH.codeHash.toLowerCase()) throw new Error("The configured sETH vault does not match this Swaputer release.");
-}
-
-export async function readBridgeSnapshot(address?: string | null): Promise<BridgeSnapshot> {
-  const contract = vault();
-  await verifyBridgeBindings(contract);
-  const accountId = address ? await readAccountId(address) : null;
-  const [balance, totalSupply, lockedEth, backingSurplus, solvent] = await Promise.all([
-    accountId ? readUint(SETH.programId, "balanceOf(bytes32)", ["bytes32"], [accountId]) : 0n,
-    readUint(SETH.programId, "totalSupply()"),
-    contract.getFunction("lockedEth").staticCall() as Promise<bigint>,
-    contract.getFunction("backingSurplus").staticCall() as Promise<bigint>,
-    contract.getFunction("isSolvent").staticCall() as Promise<boolean>
-  ]);
-  return { balance, totalSupply, lockedEth, backingSurplus, solvent };
-}
-
-export async function bridgeETH(
-  direction: "deposit" | "redeem", signer: Signer, actorAddress: string, recipientAddress: string,
-  amount: bigint, vmInput: bigint, onSubmitted?: (hash: string) => void
-): Promise<ContractTransactionReceipt> {
-  if (amount <= 0n || vmInput <= 0n) throw new Error("Enter an amount greater than zero.");
-  const actor = getAddress(actorAddress);
-  const recipient = getAddress(recipientAddress);
-  if (recipient === ZeroAddress) throw new Error("The recipient cannot be the zero address.");
-  const contract = vault(signer);
-  await verifyBridgeBindings(contract);
-  const payload = direction === "deposit"
-    ? `${id("bridgeMint(bytes32,uint256)").slice(0, 10)}${abi.encode(["bytes32", "uint256"], [await readAccountId(recipient, signer), amount]).slice(2)}`
-    : `${id("bridgeBurn(uint256)").slice(0, 10)}${abi.encode(["uint256"], [amount]).slice(2)}`;
-  const { envelope } = await signedCallEnvelope(signer, actor, SETH.programId, payload, {
-    recipient,
-    authorizedExecutor: getAddress(SETH.vaultAddress),
-    exactEthAmountIn: vmInput,
-    byteGasLimit: SETH.byteGasLimit,
-    executionRoute: "swaputer-router"
-  });
-  const tx = direction === "deposit"
-    ? await contract.getFunction("deposit")(amount, vmInput, envelope, SWAPVM.sqrtPriceLimitX96!, { value: amount + vmInput })
-    : await contract.getFunction("redeem")(amount, vmInput, recipient, envelope, SWAPVM.sqrtPriceLimitX96!, { value: vmInput });
-  return waitForConfirmation(tx, onSubmitted);
+export async function transferSRC20(
+  signer: Signer,
+  actor: string,
+  target: string,
+  recipient: string,
+  amount: bigint,
+  onSubmitted?: (hash: string) => void
+) {
+  if (!isAddress(recipient) || getAddress(recipient) === ZeroAddress) throw new Error("Enter a valid recipient wallet address.");
+  if (amount <= 0n) throw new Error("Enter an amount greater than zero.");
+  const recipientId = await readAccountId(recipient, signer);
+  return writeMiniContract(signer, actor, target, "transfer(bytes32,uint256)", ["bytes32", "uint256"], [recipientId, amount], 2_000, onSubmitted);
 }
 
 const PACKAGE_HEADER_BYTES = 44;

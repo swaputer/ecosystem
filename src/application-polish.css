@@ -3,6 +3,7 @@
 .os-window--mint { --app-accent:#ffc46b;--app-accent-rgb:255,196,107; }
 .os-window--market { --app-accent:#ff62cf;--app-accent-rgb:255,98,207; }
 .os-window--bridge { --app-accent:#ff4fc9;--app-accent-rgb:255,79,201; }
+.os-window--wallet { --app-accent:#ff55cc;--app-accent-rgb:255,85,204; }
 .os-window--terminal { --app-accent:#ff62cf;--app-accent-rgb:255,98,207; }
 
 .computer .os-window:not(.os-window--terminal) .os-window-content {

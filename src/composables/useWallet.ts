@@ -29,7 +29,7 @@ function disconnect() {
 }
 function changed() {
   disconnect();
-  error.value = "Your wallet account or network changed. Power on to reconnect.";
+  error.value = "Your wallet account or network changed. Connect again to continue.";
 }
 async function refreshBalance() {
   const currentProvider = provider.value;
@@ -52,7 +52,7 @@ async function connect() {
   connecting.value = true;
   try {
     const injected = window.ethereum;
-    if (!injected) throw new Error("Open computer in your wallet’s mobile browser, or enable a browser wallet to power on.");
+    if (!injected) throw new Error("Open Ecosystem in your wallet’s mobile browser, or enable a browser wallet to connect.");
     await injected.request({ method: "eth_requestAccounts" });
     const chain = await injected.request({ method: "eth_chainId" });
     if (BigInt(String(chain)) !== BigInt(NETWORK.chainId)) {
@@ -77,7 +77,7 @@ async function connect() {
     session.value++;
     void refreshBalance();
   } catch (cause) {
-    if (version === attempt) error.value = (cause as { code?: number }).code === 4001 ? "Connection cancelled. Power on whenever you’re ready." : friendlyError(cause);
+    if (version === attempt) error.value = (cause as { code?: number }).code === 4001 ? "Connection cancelled. Connect whenever you’re ready." : friendlyError(cause);
   } finally { if (version === attempt) connecting.value = false; }
 }
 export function useWallet() {

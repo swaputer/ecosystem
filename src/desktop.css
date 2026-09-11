@@ -389,6 +389,7 @@ button:focus-visible,a:focus-visible { outline-color:#ff7ada;outline-offset:3px;
 .os-icon--mint { --icon-glow:#f2a84a28;color:#ffd37f;background:linear-gradient(145deg,#6c4929e8 0%,#3b2118ec 52%,#170d0df5 100%);border-color:#ffe0a054; }
 .os-icon--market { --icon-glow:#ff4bc52c;color:#ff70d5;background:linear-gradient(145deg,#493442e8 0%,#271822ed 50%,#0e0c11f5 100%); }
 .os-icon--bridge { --icon-glow:#ff37c734;color:#ff5dcc;background:linear-gradient(145deg,#64264fe8 0%,#351126ef 55%,#100a10f5 100%);border-color:#ff91dc4a; }
+.os-icon--wallet { --icon-glow:#ff37c738;color:#ff70d5;background:linear-gradient(145deg,#5b2851e8 0%,#301527ef 54%,#100a10f5 100%);border-color:#ff91dc55; }
 .os-icon--terminal { --icon-glow:#ff54cd24;color:#ff72d7;background:linear-gradient(145deg,#352c38eb 0%,#1e151fed 52%,#0a090cf7 100%); }
 .os-icon--browser { --icon-glow:#a777ff2e;color:#efe7ff;background:linear-gradient(145deg,#554172eb 0%,#2c1d43ef 54%,#0e0b16f7 100%);border-color:#d9c8ff4a; }
 .os-icon--applications { --icon-glow:#ff37c726;color:#ff55ca;background:linear-gradient(145deg,#413541eb 0%,#251b27ef 52%,#0d0a0ef7 100%); }

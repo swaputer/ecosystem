@@ -6,13 +6,11 @@ const props = defineProps<{ app: AppId; path: string }>();
 const emit = defineEmits<{ navigate: [path: string] }>();
 const router = createRouter({ history: createMemoryHistory(), routes: [
   { path: "/minter", component: () => import("@/views/MinterView.vue") },
-  { path: "/market", component: () => import("@/views/MarketDirectoryView.vue") },
-  { path: "/market/:program", component: () => import("@/views/MarketDetailView.vue") },
-  { path: "/bridge", component: () => import("@/views/BridgeView.vue") },
+  { path: "/wallet", component: () => import("@/views/WalletView.vue") },
   { path: "/terminal", component: () => import("@/views/TerminalView.vue") },
   { path: "/:pathMatch(.*)*", component: { template: '<p>Application not found.</p>' } }
 ] });
-// Each desktop app owns its navigation. Opening Market never replaces Mint.
+// Each desktop app owns its navigation and preserves its state while mounted.
 const route = {} as typeof START_LOCATION;
 for (const key in START_LOCATION) Object.defineProperty(route, key, { enumerable: true, get: () => router.currentRoute.value[key as keyof typeof START_LOCATION] });
 provide(routerKey, router);

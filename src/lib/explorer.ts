@@ -153,53 +153,6 @@ export interface TransferDetail {
   finalized: boolean;
 }
 
-export interface MarketSummary {
-  programId: string;
-  marketAddress: string;
-  escrowId: string;
-  name: string;
-  symbol: string;
-  decimals: number;
-  bestBidWei?: string;
-  bestAskWei?: string;
-  openOrders: number;
-  lastTradeTime?: string;
-}
-
-export interface MarketOrder {
-  orderId: string;
-  programId: string;
-  marketAddress: string;
-  side: "buy" | "sell";
-  status: "open" | "filled" | "cancelled" | "expired";
-  maker: string;
-  taker?: string;
-  amount: string;
-  unitPriceWei: string;
-  priceWei: string;
-  vmEthAmount: string;
-  expiry: number;
-  blockNumber: number;
-  transactionHash: string;
-  finalized: boolean;
-}
-
-export interface MarketTrade {
-  orderId: string;
-  programId: string;
-  marketAddress: string;
-  side: "buy" | "sell";
-  seller: string;
-  buyer: string;
-  amount: string;
-  priceWei: string;
-  unitPriceWei: string;
-  blockNumber: number;
-  blockTime: string;
-  transactionHash: string;
-  finalized: boolean;
-}
-
 type Items<T> = { items: T[] };
 export type CursorPage<T> = Items<T> & { nextCursor?: string };
 type SearchResult = { type: "transaction" | "address" | "contract"; route: string };
@@ -256,22 +209,6 @@ export const explorerApi = {
     const params = new URLSearchParams({ limit: String(limit) });
     if (cursor) params.set("cursor", cursor);
     return get<CursorPage<TransferDetail>>(`/v1/src20/${encodeURIComponent(program)}/transfers?${params}`);
-  },
-  markets: (limit = 100) => get<Items<MarketSummary>>(`/v1/market?limit=${limit}`).then((value) => value.items),
-  market: (program: string) => get<MarketSummary>(`/v1/market/${encodeURIComponent(program)}`),
-  marketOrders: (program: string, options: { status?: string; side?: string; maker?: string; limit?: number; cursor?: string } = {}) => {
-    const params = new URLSearchParams();
-    if (options.status) params.set("status", options.status);
-    if (options.side) params.set("side", options.side);
-    if (options.maker) params.set("maker", options.maker);
-    if (options.cursor) params.set("cursor", options.cursor);
-    params.set("limit", String(options.limit ?? 100));
-    return get<CursorPage<MarketOrder>>(`/v1/market/${encodeURIComponent(program)}/orders?${params}`);
-  },
-  marketTrades: (program: string, limit = 100, cursor?: string) => {
-    const params = new URLSearchParams({ limit: String(limit) });
-    if (cursor) params.set("cursor", cursor);
-    return get<CursorPage<MarketTrade>>(`/v1/market/${encodeURIComponent(program)}/trades?${params}`);
   },
   search: (query: string) => get<SearchResult>(`/v1/search?q=${encodeURIComponent(query)}`)
 };

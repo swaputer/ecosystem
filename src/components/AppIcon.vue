@@ -13,33 +13,28 @@ defineProps<{ app: string; small?: boolean }>();
         <circle cx="23" cy="8.5" r="3.6" fill="#fff" fill-opacity=".94"/>
         <path d="M23 6.8v3.4M21.3 8.5h3.4" stroke="#5b3316" stroke-width="1.15" stroke-linecap="round"/>
       </template>
-      <template v-else-if="app === 'market'">
-        <path d="M7 24.5h18" stroke="rgba(255,255,255,.3)" stroke-width="1.2" stroke-linecap="round"/>
-        <rect x="7.2" y="17" width="3.2" height="6.2" rx="1.4" fill="currentColor" fill-opacity=".65"/>
-        <rect x="12.1" y="13.8" width="3.2" height="9.4" rx="1.4" fill="currentColor" fill-opacity=".78"/>
-        <rect x="17" y="10.2" width="3.2" height="13" rx="1.4" fill="currentColor" fill-opacity=".9"/>
-        <rect x="21.9" y="6.8" width="3.2" height="16.4" rx="1.4" fill="currentColor"/>
-        <path d="m7.8 13.4 5-3.4 4.7 1.2 7-5.1" stroke="#fff" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle cx="24.5" cy="6.1" r="1.55" fill="#fff"/>
-      </template>
-      <template v-else-if="app === 'bridge'">
-        <rect x="5.5" y="7.2" width="7.2" height="17.6" rx="3.6" fill="currentColor" fill-opacity=".12" stroke="currentColor" stroke-width="1.7"/>
-        <rect x="19.3" y="7.2" width="7.2" height="17.6" rx="3.6" fill="currentColor" fill-opacity=".12" stroke="currentColor" stroke-width="1.7"/>
-        <circle cx="9.1" cy="11" r="1.35" fill="#fff"/>
-        <circle cx="22.9" cy="21" r="1.35" fill="#fff"/>
-        <path d="M9.2 11c7.7 0 6 10 13.6 10M20.4 18.7l2.5 2.3-2.5 2.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M22.8 11c-3.6 0-5.3 2.2-6.7 4.5" stroke="rgba(255,255,255,.52)" stroke-width="1.35" stroke-linecap="round"/>
-      </template>
       <template v-else-if="app === 'terminal'">
         <path d="m7.5 9.4 6.4 6.6-6.4 6.6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
         <path d="M17 22.4h7.3" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
         <circle cx="23.8" cy="8.2" r="1.2" fill="currentColor" fill-opacity=".8"/>
+      </template>
+      <template v-else-if="app === 'wallet'">
+        <rect x="5.8" y="8.2" width="20.4" height="16.2" rx="4.2" fill="currentColor" fill-opacity=".12" stroke="currentColor" stroke-width="1.65"/>
+        <path d="M8.4 8.3V7.1c0-1.4 1.2-2.5 2.6-2.2l11 2.2c1.1.2 1.8 1.1 1.8 2.2" stroke="rgba(255,255,255,.72)" stroke-width="1.35" stroke-linecap="round"/>
+        <path d="M18.8 13.1h7.3v6.6h-7.3c-1.8 0-3.2-1.5-3.2-3.3s1.4-3.3 3.2-3.3Z" fill="currentColor" fill-opacity=".24" stroke="#fff" stroke-width="1.25"/>
+        <circle cx="19.3" cy="16.4" r="1.25" fill="currentColor"/>
       </template>
       <template v-else-if="app === 'browser'">
         <circle cx="16" cy="16" r="10" fill="currentColor" fill-opacity=".08" stroke="currentColor" stroke-width="1.6"/>
         <path d="m19.4 10.2-2.1 7.1-7.1 2.1 2.1-7.1 7.1-2.1Z" fill="currentColor" fill-opacity=".26" stroke="#fff" stroke-width="1.25" stroke-linejoin="round"/>
         <circle cx="14.8" cy="14.8" r="1.8" fill="currentColor"/>
         <path d="M16 6v2.1M16 23.9V26M6 16h2.1M23.9 16H26" stroke="rgba(255,255,255,.5)" stroke-width="1.15" stroke-linecap="round"/>
+      </template>
+      <template v-else-if="app === 'studio'">
+        <path d="M8.5 10.2h15M8.5 16h15M8.5 21.8h15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M10.4 7.2h11.2c2 0 3.6 1.6 3.6 3.6v10.4c0 2-1.6 3.6-3.6 3.6H10.4c-2 0-3.6-1.6-3.6-3.6V10.8c0-2 1.6-3.6 3.6-3.6Z" stroke="currentColor" stroke-opacity=".42" stroke-width="1.45"/>
+        <circle cx="11.4" cy="10.2" r="1.35" fill="#fff"/>
+        <circle cx="20.6" cy="21.8" r="1.35" fill="#fff"/>
       </template>
       <template v-else>
         <rect x="5.5" y="5.5" width="9" height="9" rx="3" fill="currentColor"/>

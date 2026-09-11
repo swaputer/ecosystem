@@ -37,6 +37,7 @@ const submittedHash = ref<string | null>(null);
 const submittedTransactionUrl = computed(() => submittedHash.value ? explorerURL(`/tx/${submittedHash.value}`) : "");
 let copyTimer: number | undefined;
 let loadVersion = 0;
+const confirmationLabel = `${TRANSACTION_CONFIRMATIONS} ${TRANSACTION_CONFIRMATIONS === 1 ? "confirmation" : "confirmations"}`;
 
 const createBusy = computed(() => createPhase.value === "compiling" || createPhase.value === "signing" || createPhase.value === "pending");
 const mintBusy = computed(() => ["verifying", "signing", "pending"].includes(mintPhase.value));
@@ -49,7 +50,7 @@ const mintLabel = computed(() => {
   if (!wallet.address.value) return "Connect wallet";
   if (mintPhase.value === "verifying") return "Verifying contract";
   if (mintPhase.value === "signing") return "Confirm in wallet";
-  if (mintPhase.value === "pending") return `Finalizing · ${TRANSACTION_CONFIRMATIONS} confirms`;
+  if (mintPhase.value === "pending") return `Finalizing · ${confirmationLabel}`;
   if (mintPhase.value === "confirmed") return "Minted";
   if (mintExhausted.value) return "Mint complete";
   return snapshot.value ? `Mint ${tokenAmount(snapshot.value.mintAmount, snapshot.value.decimals)} ${snapshot.value.symbol}` : "Load contract";
@@ -58,7 +59,7 @@ const createLabel = computed(() => {
   if (!wallet.address.value) return "Connect wallet";
   if (createPhase.value === "compiling") return "Compiling package";
   if (createPhase.value === "signing") return "Confirm in wallet";
-  if (createPhase.value === "pending") return `Finalizing · ${TRANSACTION_CONFIRMATIONS} confirms`;
+  if (createPhase.value === "pending") return `Finalizing · ${confirmationLabel}`;
   if (createPhase.value === "confirmed") return "Done";
   return "Create SRC20";
 });
@@ -314,7 +315,7 @@ onBeforeUnmount(() => {
           <div class="token-modal-decimals"><span>Decimals</span><strong>18</strong><LockKeyhole :size="14" /></div>
           <p class="token-modal-note">The token package is compiled and deployed as an SVM Mini Contract.</p>
           <p v-if="createdProgram" class="token-modal-result" role="status"><Check :size="14" /><span>Created</span><code>{{ short(createdProgram, 12, 10) }}</code><button type="button" aria-label="Copy created contract" @click="copy(createdProgram)"><Copy :size="13" /></button></p>
-          <a v-else-if="submittedHash" class="token-modal-result token-modal-result--pending" role="status" :href="submittedTransactionUrl" target="_blank" rel="noreferrer"><Check v-if="createPhase === 'confirmed'" :size="14" /><LoaderCircle v-else class="spin" :size="14" /><span>{{ createPhase === 'confirmed' ? 'Confirmed · open in Explore' : `Finalizing · ${TRANSACTION_CONFIRMATIONS} confirms` }}</span><code>{{ short(submittedHash, 10, 8) }}</code></a>
+          <a v-else-if="submittedHash" class="token-modal-result token-modal-result--pending" role="status" :href="submittedTransactionUrl" target="_blank" rel="noreferrer"><Check v-if="createPhase === 'confirmed'" :size="14" /><LoaderCircle v-else class="spin" :size="14" /><span>{{ createPhase === 'confirmed' ? 'Confirmed · open in Explore' : `Finalizing · ${confirmationLabel}` }}</span><code>{{ short(submittedHash, 10, 8) }}</code></a>
           <div class="token-modal-actions">
             <button class="token-modal-cancel" type="button" :disabled="createBusy" @click="closeCreator">Cancel</button>
             <button class="token-modal-submit" type="submit" :disabled="createBusy || chainAction.busy.value"><LoaderCircle v-if="createBusy" class="spin" :size="15" /><Check v-else-if="createPhase === 'confirmed'" :size="15" /><Plus v-else :size="15" />{{ createLabel }}</button>

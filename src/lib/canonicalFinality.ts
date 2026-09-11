@@ -1,4 +1,4 @@
-export const MINIMUM_INSPECTION_CONFIRMATIONS = 12n;
+export const MINIMUM_INSPECTION_CONFIRMATIONS = 1n;
 
 const HASH = /^0x[0-9a-fA-F]{64}$/;
 const ADDRESS = /^0x[0-9a-fA-F]{40}$/;

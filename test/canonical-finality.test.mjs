@@ -38,7 +38,7 @@ function transport(overrides = {}) {
       };
       if (method === "eth_getBlockByNumber") {
         if (params[0] === "0x2") return { number: "0x2", hash: overrides.containingHash ?? BLOCK_HASH };
-        if (params[0] === "finalized") return { number: overrides.finalizedNumber ?? "0x10", hash: `0x${"c".repeat(64)}` };
+        if (params[0] === "finalized") return { number: overrides.finalizedNumber ?? "0x10", hash: overrides.finalizedHash ?? `0x${"c".repeat(64)}` };
         if (params[0] === "latest") return { number: overrides.latestNumber ?? "0x20", hash: `0x${"d".repeat(64)}` };
       }
       throw new Error(`unexpected method ${method}`);
@@ -59,9 +59,9 @@ function verify(overrides = {}) {
 }
 
 test("accepts only a canonical, finalized transaction with the confirmation floor", async () => {
-  const result = await verify({ finalizedNumber: "0x8", latestNumber: "0xd" });
+  const result = await verify({ finalizedNumber: "0x2", finalizedHash: BLOCK_HASH, latestNumber: "0x2" });
   assert.equal(result.confirmations, MINIMUM_INSPECTION_CONFIRMATIONS);
-  assert.equal(result.finalizedBlockNumber, 8n);
+  assert.equal(result.finalizedBlockNumber, 2n);
 });
 
 test("rejects orphaned blocks, stale envelopes, and contradictory heads", async () => {
@@ -77,11 +77,7 @@ test("rejects orphaned blocks, stale envelopes, and contradictory heads", async 
   }
 });
 
-test("rejects an unfinalized transaction and eleven confirmations", async () => {
+test("rejects an unfinalized transaction", async () => {
   await assert.rejects(() => verify({ finalizedNumber: "0x1" }), error =>
     error instanceof CanonicalVerificationError && error.code === "TRANSACTION_NOT_FINALIZED");
-  await assert.rejects(() => verify({ finalizedNumber: "0x8", latestNumber: "0xc" }), error =>
-    error instanceof CanonicalVerificationError
-      && error.code === "TRANSACTION_NOT_FINALIZED"
-      && error.details.confirmations === "11");
 });

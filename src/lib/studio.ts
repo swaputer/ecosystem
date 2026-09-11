@@ -79,38 +79,9 @@ const MINI_TOKEN = `contract MiniToken {
 }
 `;
 
-const SETH = `contract BridgedAsset {
-  event Transfer(account indexed from, account indexed to, uint256 amount);
-  uint256 issued;
-  mapping(account => uint256) balances;
-  address trustedVault;
-  account zeroAccount;
-  address zeroAddress;
-
-  constructor(address vault_) {
-    require(vault_ != zeroAddress);
-    trustedVault = vault_;
-  }
-
-  function move(account from, account to, uint256 amount) internal returns (bool) {
-    require(to != zeroAccount);
-    require(balances[from] >= amount);
-    balances[from] = balances[from] - amount;
-    balances[to] = balances[to] + amount;
-    emit Transfer(from, to, amount);
-    return true;
-  }
-
-  function transfer(account to, uint256 amount) external returns (bool) {
-    return move(msg.sender, to, amount);
-  }
-}
-`;
-
 export const STUDIO_TEMPLATES: readonly StudioTemplate[] = Object.freeze([
   { id: "counter", name: "Counter", fileName: "counter.tsol", description: "State and return values", source: COUNTER },
-  { id: "mini-token", name: "Mini Token", fileName: "mini-token.tsol", description: "Internal calls and balances", source: MINI_TOKEN },
-  { id: "seth", name: "sETH Bridge", fileName: "seth-bridge.tsol", description: "Vault-bound asset pattern", source: SETH }
+  { id: "mini-token", name: "Mini Token", fileName: "mini-token.tsol", description: "Internal calls and balances", source: MINI_TOKEN }
 ]);
 
 export const EMPTY_CONTRACT = `contract MyContract {

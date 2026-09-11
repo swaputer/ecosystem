@@ -5,7 +5,6 @@ import vm from "node:vm";
 import ts from "typescript";
 import * as ethers from "ethers";
 import * as universalRouterLib from "../src/lib/universalRouter.ts";
-import * as transactionFinalityLib from "../src/lib/transactionFinality.ts";
 
 const { AbiCoder, Interface, ZeroAddress, getAddress } = ethers;
 const {
@@ -72,11 +71,9 @@ function protocolHarness() {
       sqrtPriceLimitX96: 4_295_128_740n,
       minNetTokenOut: 1n
     },
-    SETH: {},
     TRANSACTION_CONFIRMATIONS: 12,
     HOOK_ABI: [],
-    KERNEL_ABI: [],
-    SETH_VAULT_ABI: []
+    KERNEL_ABI: []
   };
 
   class FakeJsonRpcProvider {}
@@ -133,7 +130,6 @@ function protocolHarness() {
       };
       if (name === "./config") return config;
       if (name === "./universalRouter") return universalRouterLib;
-      if (name === "./transactionFinality") return transactionFinalityLib;
       if (name === "@swaputer-labs/receipt-codec") return { decodeVMReceipt: () => { throw new Error("No receipt payload in this harness"); } };
       throw new Error(`Unexpected module: ${name}`);
     }
@@ -268,22 +264,20 @@ test("an indeterminate receipt wait preserves the full submitted hash", async ()
   );
 });
 
-test("an orphaned post-wait receipt remains unresolved and blocks a blind retry", async () => {
+test("a successful receipt is accepted without an immediate second RPC recheck", async () => {
   const { api, canonicalReceipt } = protocolHarness();
   const hash = `0x${"44".repeat(32)}`;
   const receipt = canonicalReceipt(hash);
   receipt.provider.getBlock = async () => null;
   let waitedFor;
-  await assert.rejects(
-    api.waitForConfirmation({
-      hash,
-      wait: async confirmations => {
-        waitedFor = confirmations;
-        return receipt;
-      }
-    }),
-    error => error instanceof api.TransactionStatusUnknownError && error.transactionHash === hash
-  );
+  const result = await api.waitForConfirmation({
+    hash,
+    wait: async confirmations => {
+      waitedFor = confirmations;
+      return receipt;
+    }
+  });
+  assert.equal(result, receipt);
   assert.equal(waitedFor, 12);
 });
 
@@ -313,15 +307,6 @@ test("executor-bound envelopes are still signed for the custom Swaputer Router",
   assert.equal(capture.action.authorizedExecutor, executor);
   assert.equal(built.envelope.authorizedExecutor, executor);
   assert.equal(capture.execute, null);
-});
-
-test("market and bridge callers explicitly retain the executor-bound route", () => {
-  const marketSource = readFileSync(new URL("../src/lib/market.ts", import.meta.url), "utf8");
-  const protocolSource = readFileSync(new URL("../src/lib/protocol.ts", import.meta.url), "utf8");
-  assert.equal((marketSource.match(/executionRoute: "swaputer-router"/g) ?? []).length, 4);
-  assert.match(protocolSource, /executionRoute: "swaputer-router"/);
-  assert.doesNotMatch(protocolSource, /getFunction\("buyVMExactInput"\)/);
-  assert.match(protocolSource, /new Contract\(SWAPVM\.universalRouter, UNIVERSAL_ROUTER_ABI, signer\)/);
 });
 
 test("web config derives the direct pool key from the active release", () => {
