@@ -1,16 +1,13 @@
 # Swaputer Ecosystem
 
-A clean ecosystem directory for Swaputer protocol applications. It gives users one place to open Explore, Minter, Wallet, Studio and Terminal without presenting the product as a simulated operating system.
+A clean ecosystem directory for Swaputer protocol applications. It gives users one place to open Explore, Factory, Wallet, and Studio without presenting the product as a simulated operating system.
 
 ## Applications
 
 - **Explore** opens the protocol explorer in a separate browser tab.
-- **Minter** verifies a public-mint SRC20 contract, displays its supply and mint progress, and mints to the connected wallet. Create SRC20 deploys a new token using the public mint template.
-- **Wallet** starts empty, imports indexed Swaputer token contracts by ID, reads their protocol balances, and sends supported tokens to an EVM wallet address.
+- **Factory** verifies a public-mint SRC20 contract, displays its supply and mint progress, and mints to the connected wallet. Create SRC20 deploys a new token using the public mint template.
+- **Wallet** starts empty, imports indexed Swaputer token addresses, reads their protocol balances, and sends supported tokens to an EVM wallet address.
 - **Studio** opens the standalone online Studio.
-- **Terminal** combines Ecosystem's read-only browser verifier adapter with published Swaputer verification modules for `inspect`, `decode-receipt`, `help`, `version` and `clear` commands.
-
-The Terminal uses transaction inspection from the published `@swaputer-labs/cli@0.1.2` package and receipt decoding from `@swaputer-labs/receipt-codec@0.1.2`. Its adapter additionally rechecks the receipt, transaction envelope, canonical block, finalized head and the active one-confirmation policy before displaying `Verified`. Because CLI 0.1.2 does not publish a browser export and its root barrel also loads Node-only deployment helpers, Ecosystem imports the exact browser-safe inspection modules through a documented internal adapter. See [Browser CLI adapter provenance](docs/browser-cli-adapter.md). No repacked package or sibling repository is required.
 
 The included release is Base Sepolia. Connecting a wallet does not sign or send a transaction. Transaction actions request confirmation in the wallet. Account or network changes require reconnection.
 
@@ -33,6 +30,8 @@ Open `http://127.0.0.1:4175`. The development server forwards `/api` to the inde
 | --- | --- |
 | `VITE_SVM_API_URL` | Indexer HTTP/WebSocket base, normally `/api` |
 | `INDEXER_PROXY_URL` | Development proxy destination |
+| `VITE_ECOSYSTEM_APPS_CATALOG` | Cloudflare-hosted ecosystem app catalog endpoint (default `/api/ecosystem/apps`) |
+| `VITE_ECOSYSTEM_APP_SUBMIT` | Submission endpoint for apps published directly to the catalog (default same as catalog) |
 | `VITE_PROTOCOL_EXPLORER_URL` | Protocol explorer for contract, address and transaction links |
 | `VITE_DOCS_URL` | Documentation site URL |
 | `VITE_STUDIO_URL` | Standalone Studio URL |
@@ -57,7 +56,7 @@ Browser tests use a simulated wallet and never submit real transactions. On macO
 npm run build
 ```
 
-Serve `dist/` with HTTPS and proxy `/api/` to the indexer, including WebSocket upgrades. Set `VITE_PROTOCOL_EXPLORER_URL`, `VITE_DOCS_URL` and `VITE_STUDIO_URL` before building. Hash links such as `/#/minter?contract=0x...` preserve the destination.
+Serve `dist/` with HTTPS and proxy `/api/` to the indexer, including WebSocket upgrades. Set `VITE_PROTOCOL_EXPLORER_URL`, `VITE_DOCS_URL` and `VITE_STUDIO_URL` before building. Hash links such as `/#/factory?contract=0x...` preserve the destination.
 
 A standalone Docker build is also provided:
 
@@ -65,3 +64,15 @@ A standalone Docker build is also provided:
 docker build --pull --build-arg VITE_PROTOCOL_EXPLORER_URL=https://YOUR_EXPLORER_HOST --build-arg VITE_DOCS_URL=https://YOUR_DOCS_HOST --build-arg VITE_STUDIO_URL=https://YOUR_STUDIO_HOST -t swaputer-ecosystem .
 docker run --rm -p 127.0.0.1:4175:8080 -e INDEXER_ORIGIN=http://YOUR_INDEXER_HOST:8080 swaputer-ecosystem
 ```
+
+## Applications registry
+
+Ecosystem applications are loaded from a Cloudflare Worker API. Valid submissions are published immediately without a manual review step.
+Legacy rejected records remain hidden; legacy pending records are treated as published.
+
+The worker implementation is in `ecosystem/cloudflare/ecosystem-apps-worker` and supports:
+
+- `GET /ecosystem/apps` (public application list)
+- `POST /ecosystem/apps` (publish an application)
+
+Set `VITE_ECOSYSTEM_APPS_CATALOG` and `VITE_ECOSYSTEM_APP_SUBMIT` to the deployed endpoint.

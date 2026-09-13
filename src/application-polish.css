@@ -1,18 +1,17 @@
 /* Application workbench
-   Shared interaction surfaces for Mint, Market, Bridge and Terminal. */
+   Shared interaction surfaces for Mint, Market and Bridge. */
 .os-window--mint { --app-accent:#ffc46b;--app-accent-rgb:255,196,107; }
 .os-window--market { --app-accent:#ff62cf;--app-accent-rgb:255,98,207; }
 .os-window--bridge { --app-accent:#ff4fc9;--app-accent-rgb:255,79,201; }
 .os-window--wallet { --app-accent:#ff55cc;--app-accent-rgb:255,85,204; }
-.os-window--terminal { --app-accent:#ff62cf;--app-accent-rgb:255,98,207; }
 
-.computer .os-window:not(.os-window--terminal) .os-window-content {
+.computer .os-window .os-window-content {
   background:
     radial-gradient(circle at 88% -8%,rgba(var(--app-accent-rgb),.075),transparent 35%),
     linear-gradient(180deg,#17161bea,#111115f4);
 }
 
-.computer .os-window:not(.os-window--terminal) .page {
+.computer .os-window .page {
   padding-inline:28px;
   padding-bottom:32px;
 }
@@ -336,24 +335,8 @@ body .market-dialog .market-confirm-details>div { border-color:#ffffff15; }
 .computer .os-window--bridge .reserve-grid>div { border-color:#ffffff12; }
 .computer .os-window--bridge .reserve-grid strong { color:#f8f5f9;font-size:17px; }
 
-/* Terminal */
-.os-window--terminal .terminal-app {
-  background:
-    linear-gradient(180deg,#ffffff0255,transparent 12%),
-    radial-gradient(circle at 100% 0,#ff37c70d,transparent 40%),
-    #0a090d;
-}
-
-.os-window--terminal .terminal-scroll { padding:26px 30px 34px; }
-.os-window--terminal .terminal-entry { margin-bottom:20px; }
-.os-window--terminal .terminal-command { margin-bottom:8px;color:#f5f2f6; }
-.os-window--terminal .terminal-command span,.os-window--terminal .terminal-prompt label { color:#ff63d1;text-shadow:0 0 14px #ff37c75c; }
-.os-window--terminal .terminal-line { color:#b9b4bc; }
-.os-window--terminal .terminal-line.is-error { color:#ff8189; }
-.os-window--terminal .terminal-prompt { padding-top:2px; }
-
 @media(max-width:760px) {
-  .computer .os-window:not(.os-window--terminal) .page { padding-inline:18px;padding-bottom:76px; }
+  .computer .os-window .page { padding-inline:18px;padding-bottom:76px; }
   .computer .os-window :is(.minter-heading,.discovery-heading,.page--bridge .page-heading) { min-height:78px;padding-block:17px 14px; }
   .computer .os-window :is(.minter-heading,.discovery-heading,.page--bridge .page-heading) h1 { font-size:26px; }
   .computer .os-window--mint .minter-heading { flex-direction:row;align-items:center;gap:12px; }
@@ -378,7 +361,6 @@ body .market-dialog .market-confirm-details>div { border-color:#ffffff15; }
   .computer .os-window--bridge .atomic-path li { display:grid;min-height:68px; }
   .computer .os-window--bridge .atomic-path li:before { display:block; }
   .computer .os-window--bridge .reserve-ledger { padding:15px 14px 11px; }
-  .os-window--terminal .terminal-scroll { padding:22px 20px calc(62px + env(safe-area-inset-bottom)); }
 }
 
 @media(max-width:360px) {

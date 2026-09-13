@@ -10,13 +10,7 @@
     "moduleResolution": "Bundler",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@swaputer-cli/errors": ["node_modules/@swaputer-labs/cli/dist/src/errors.d.ts"],
-      "@swaputer-cli/inspect": ["node_modules/@swaputer-labs/cli/dist/src/inspect.d.ts"],
-      "@swaputer-cli/json": ["node_modules/@swaputer-labs/cli/dist/src/json.d.ts"],
-      "@swaputer-cli/package": ["node_modules/@swaputer-labs/cli/package.json"],
-      "@swaputer-cli/rpc": ["node_modules/@swaputer-labs/cli/dist/src/rpc.d.ts"],
-      "@swaputer-cli/types": ["node_modules/@swaputer-labs/cli/dist/src/types.d.ts"]
+      "@/*": ["src/*"]
     },
     "resolveJsonModule": true,
     "isolatedModules": true,

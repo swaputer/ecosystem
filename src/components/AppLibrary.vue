@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onBeforeUnmount, ref } from "vue";
 import { Search, X } from "@lucide/vue";
-import { apps, type AppId } from "@/lib/apps";
+import { apps, type EcosystemApp } from "@/lib/apps";
 import AppIcon from "./AppIcon.vue";
-const emit = defineEmits<{ open: [id: AppId]; close: [] }>();
+const emit = defineEmits<{ open: [id: string]; close: [] }>();
 const query = ref('');
 const search = ref<HTMLInputElement>();
-const results = computed(() => apps.filter(app => app.name.toLowerCase().includes(query.value.toLowerCase().trim())));
+const results = computed(() => apps.filter((app: EcosystemApp) => app.name.toLowerCase().includes(query.value.toLowerCase().trim())));
 const previous = document.activeElement as HTMLElement | null;
 onMounted(async () => { await nextTick(); search.value?.focus(); });
 onBeforeUnmount(() => previous?.focus());

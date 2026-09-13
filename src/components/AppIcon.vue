@@ -13,11 +13,6 @@ defineProps<{ app: string; small?: boolean }>();
         <circle cx="23" cy="8.5" r="3.6" fill="#fff" fill-opacity=".94"/>
         <path d="M23 6.8v3.4M21.3 8.5h3.4" stroke="#5b3316" stroke-width="1.15" stroke-linecap="round"/>
       </template>
-      <template v-else-if="app === 'terminal'">
-        <path d="m7.5 9.4 6.4 6.6-6.4 6.6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M17 22.4h7.3" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
-        <circle cx="23.8" cy="8.2" r="1.2" fill="currentColor" fill-opacity=".8"/>
-      </template>
       <template v-else-if="app === 'wallet'">
         <rect x="5.8" y="8.2" width="20.4" height="16.2" rx="4.2" fill="currentColor" fill-opacity=".12" stroke="currentColor" stroke-width="1.65"/>
         <path d="M8.4 8.3V7.1c0-1.4 1.2-2.5 2.6-2.2l11 2.2c1.1.2 1.8 1.1 1.8 2.2" stroke="rgba(255,255,255,.72)" stroke-width="1.35" stroke-linecap="round"/>

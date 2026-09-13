@@ -1,5 +1,4 @@
 import activeRelease from "../../config/base-sepolia.json";
-import type { Hex, SwaputerDeployment } from "@swaputer-cli/types";
 
 interface UniswapV4Release {
   readonly universalRouter: string;
@@ -33,20 +32,6 @@ export const NETWORK = Object.freeze({
   rpcUrl: value("VITE_RPC_URL") || "https://base-sepolia-rpc.publicnode.com",
   explorerUrl: pinned("VITE_EXPLORER_URL", activeRelease.network.explorerUrl),
   nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 }
-});
-
-export const CLI_DEPLOYMENT: SwaputerDeployment = Object.freeze({
-  schemaVersion: "swaputer-cli-deployment/1",
-  id: "base-sepolia",
-  releaseName: activeRelease.release.name,
-  protocolVersion: activeRelease.release.protocolVersion,
-  chainId: BigInt(activeRelease.network.chainId),
-  networkName: activeRelease.network.name,
-  kernel: activeRelease.core.kernel.toLowerCase() as Hex,
-  kernelRuntimeCodeHash: activeRelease.runtimeCodeHashes.kernel.toLowerCase() as Hex,
-  worldId: activeRelease.core.worldId.toLowerCase() as Hex,
-  sourceManifest: "config/base-sepolia.json",
-  sourceManifestHash: activeRelease.integrity.manifestHash.toLowerCase() as Hex
 });
 
 const worldId = pinned("VITE_SWAPVM_WORLD_ID", activeRelease.core.worldId);

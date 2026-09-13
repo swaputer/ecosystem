@@ -5,9 +5,8 @@ import { explorerURL, type AppId } from "@/lib/apps";
 const props = defineProps<{ app: AppId; path: string }>();
 const emit = defineEmits<{ navigate: [path: string] }>();
 const router = createRouter({ history: createMemoryHistory(), routes: [
-  { path: "/minter", component: () => import("@/views/MinterView.vue") },
+  { path: "/factory", component: () => import("@/views/MinterView.vue") },
   { path: "/wallet", component: () => import("@/views/WalletView.vue") },
-  { path: "/terminal", component: () => import("@/views/TerminalView.vue") },
   { path: "/:pathMatch(.*)*", component: { template: '<p>Application not found.</p>' } }
 ] });
 // Each desktop app owns its navigation and preserves its state while mounted.
