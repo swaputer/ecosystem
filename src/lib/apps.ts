@@ -16,10 +16,10 @@ export interface EcosystemApp {
 }
 
 const builtinApps: ReadonlyArray<EcosystemApp> = [
-  { id: "browser", name: "Explore", domain: "explore.swaputer.xyz", category: "Explore", status: "approved", external: true },
-  { id: "mint", name: "Factory", domain: "factory.swaputer.xyz", category: "Tools", path: "/factory", external: false, appId: "mint", status: "approved" },
-  { id: "wallet", name: "Wallet", domain: "wallet.swaputer.xyz", category: "Wallet", path: "/wallet", external: false, appId: "wallet", status: "approved" },
-  { id: "studio", name: "Studio", domain: "studio.swaputer.xyz", category: "Developer", status: "approved", external: true, appId: "studio" }
+  { id: "browser", name: "Explore", domain: "explore.swaputer.com", category: "Explore", status: "approved", external: true },
+  { id: "mint", name: "Factory", domain: "factory.swaputer.com", category: "Tools", path: "/factory", external: false, appId: "mint", status: "approved" },
+  { id: "wallet", name: "Wallet", domain: "wallet.swaputer.com", category: "Wallet", path: "/wallet", external: false, appId: "wallet", status: "approved" },
+  { id: "studio", name: "Studio", domain: "studio.swaputer.com", category: "Developer", status: "approved", external: true, appId: "studio" }
 ];
 
 export const apps: ReadonlyArray<EcosystemApp> = builtinApps;
@@ -27,9 +27,12 @@ export const apps: ReadonlyArray<EcosystemApp> = builtinApps;
 const rawCatalogURL = String(import.meta.env.VITE_ECOSYSTEM_APPS_CATALOG || "/api/ecosystem/apps").replace(/\/$/, "");
 const rawSubmitURL = String(import.meta.env.VITE_ECOSYSTEM_APP_SUBMIT || rawCatalogURL).replace(/\/$/, "");
 
-export const explorerBase = String(import.meta.env.VITE_PROTOCOL_EXPLORER_URL || "http://127.0.0.1:4174").replace(/\/$/, "");
-export const studioBase = String(import.meta.env.VITE_STUDIO_URL || "http://127.0.0.1:4176").replace(/\/$/, "");
-export const docsBase = String(import.meta.env.VITE_DOCS_URL || "http://127.0.0.1:4177").replace(/\/$/, "");
+export const explorerBase = String(import.meta.env.VITE_PROTOCOL_EXPLORER_URL
+  || (import.meta.env.DEV ? "http://127.0.0.1:4174" : "https://explore.swaputer.com")).replace(/\/$/, "");
+export const studioBase = String(import.meta.env.VITE_STUDIO_URL
+  || (import.meta.env.DEV ? "http://127.0.0.1:4176" : "https://studio.swaputer.com")).replace(/\/$/, "");
+export const docsBase = String(import.meta.env.VITE_DOCS_URL
+  || (import.meta.env.DEV ? "http://127.0.0.1:4177" : "https://docs.swaputer.com")).replace(/\/$/, "");
 
 export const catalogURL = rawCatalogURL;
 export const submitURL = rawSubmitURL;
@@ -143,9 +146,10 @@ export function appForPath(path: string): EcosystemApp | undefined {
 }
 
 export function canonicalUrl(app: EcosystemApp): string {
+  if (app.id === "browser") return explorerBase;
+  if (app.id === "studio") return studioBase;
+
   if (!app.external) {
-    if (app.id === "browser") return explorerBase;
-    if (app.id === "studio") return studioBase;
     return app.url && app.url.trim() ? app.url.trim() : explorerBase;
   }
 

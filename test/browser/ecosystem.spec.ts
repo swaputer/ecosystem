@@ -26,15 +26,15 @@ test('ecosystem directory filters, searches, and opens internal apps', async ({ 
 
   await page.locator('.ecosystem-filters').getByRole('button', { name: 'Wallet', exact: true }).click();
   await expect(page.locator('.ecosystem-app-row')).toHaveCount(1);
-  await expect(page.getByRole('button', { name: /Wallet wallet\.swaputer\.xyz/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Wallet wallet\.swaputer\.com/ })).toBeVisible();
 
   await page.locator('.ecosystem-filters').getByRole('button', { name: 'All', exact: true }).click();
   await page.getByPlaceholder('Search').fill('factory');
   await expect(page.locator('.ecosystem-app-row')).toHaveCount(1);
-  await expect(page.getByRole('button', { name: /Factory factory\.swaputer\.xyz/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Factory factory\.swaputer\.com/ })).toBeVisible();
 
   await page.getByPlaceholder('Search').fill('');
-  await page.getByRole('button', { name: /Factory factory\.swaputer\.xyz/ }).click();
+  await page.getByRole('button', { name: /Factory factory\.swaputer\.com/ }).click();
   const panel = page.locator('.ecosystem-app-page');
   await expect(panel).toBeVisible();
   await expect(panel).toContainText('Factory');
@@ -64,12 +64,12 @@ test('external apps open their standalone products', async ({ page }) => {
   await page.goto('/');
 
   const explorePopup = page.waitForEvent('popup');
-  await page.getByRole('button', { name: /Explore explore\.swaputer\.xyz/ }).click();
+  await page.getByRole('button', { name: /Explore explore\.swaputer\.com/ }).click();
   await expect.poll(async () => (await explorePopup).url()).toContain('127.0.0.1:4174');
   await (await explorePopup).close();
 
   const studioPopup = page.waitForEvent('popup');
-  await page.getByRole('button', { name: /Studio studio\.swaputer\.xyz/ }).click();
+  await page.getByRole('button', { name: /Studio studio\.swaputer\.com/ }).click();
   await expect.poll(async () => (await studioPopup).url()).toContain('127.0.0.1:4176');
   await (await studioPopup).close();
 });
