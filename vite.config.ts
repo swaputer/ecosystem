@@ -9,7 +9,9 @@ export default defineConfig(({ mode }) => {
     resolve: { alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
       "buffer": fileURLToPath(new URL("./node_modules/buffer/index.js", import.meta.url)),
-      "node:crypto": fileURLToPath(new URL("./src/lib/nodeCryptoShim.ts", import.meta.url))
+      "node:crypto": fileURLToPath(new URL("./src/lib/nodeCryptoShim.ts", import.meta.url)),
+      "node:fs/promises": fileURLToPath(new URL("./src/lib/nodeFsPromisesShim.ts", import.meta.url)),
+      "node:path": fileURLToPath(new URL("./src/lib/nodePathShim.ts", import.meta.url))
     } },
     server: {
       host: "127.0.0.1", port: 4175, strictPort: true,
