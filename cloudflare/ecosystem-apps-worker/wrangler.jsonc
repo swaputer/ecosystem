@@ -1,0 +1,25 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "swaputer-ecosystem-apps",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "workers_dev": true,
+  "routes": [
+    {
+      "pattern": "apps.swaputer.com",
+      "custom_domain": true
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "APP_CATALOG",
+      "id": "38ea62833e6d41bba970788bbd530501"
+    }
+  ],
+  "vars": {
+    "ALLOWED_ORIGIN": "https://swaputer.com"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

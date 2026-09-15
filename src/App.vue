@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { ArrowUpRight, Check, CircleDashed, Copy, LoaderCircle, Power, Search, Send, X } from "@lucide/vue";
+import { ArrowUpRight, CircleDashed, Search, Send, X } from "@lucide/vue";
 import AppIcon from "@/components/AppIcon.vue";
 import AppSurface from "@/components/AppSurface.vue";
 import AppToast from "@/components/AppToast.vue";
@@ -18,15 +18,10 @@ import {
   type EcosystemApp,
   studioBase,
 } from "@/lib/apps";
-import { short } from "@/lib/protocol";
-import { toast } from "@/composables/useToast";
-import { formatWalletBalance } from "@/lib/walletBalance";
 
 const wallet = useWallet();
 const chainAction = useChainAction();
 const recoveryUrl = computed(() => chainAction.unresolvedHash.value ? explorerURL(`/tx/${chainAction.unresolvedHash.value}`) : "");
-const walletBalanceText = computed(() => formatWalletBalance(wallet.balance.value, wallet.balanceLoading.value));
-const copied = ref(false);
 const query = ref("");
 const category = ref("All");
 const submitOpen = ref(false);
@@ -55,7 +50,7 @@ const visibleApps = computed(() => {
   const needle = query.value.trim().toLowerCase();
   return apps.value.filter(app => {
     const categoryMatch = category.value === "All" || app.category === category.value;
-    const queryMatch = !needle || `${app.name} ${app.domain} ${app.category}`.toLowerCase().includes(needle);
+    const queryMatch = !needle || `${app.name} ${app.domain} ${app.description || ""} ${app.category}`.toLowerCase().includes(needle);
     return categoryMatch && queryMatch;
   });
 });
@@ -65,7 +60,6 @@ const activeApp = computed<EcosystemApp & { appId: AppId } | null>(() => {
   if (!target?.appId || target.external) return null;
   return target as EcosystemApp & { appId: AppId };
 });
-const isWalletPage = computed(() => activeApp.value?.appId === "wallet");
 
 function appUrl(app: EcosystemApp): string {
   return canonicalUrl(app);
@@ -134,16 +128,6 @@ function fallbackDomain(value: string) {
   return /^(https?:\/\/)/i.test(trimmed) ? trimmed : `https://${trimmed}`;
 }
 
-async function copy(value: string) {
-  try {
-    await navigator.clipboard.writeText(value);
-    copied.value = true;
-    setTimeout(() => copied.value = false, 1500);
-  } catch {
-    toast.error("Could not copy. Select the address and copy it manually.");
-  }
-}
-
 async function loadApps() {
   loadingApps.value = true;
   try {
@@ -196,11 +180,6 @@ async function publishApplication() {
   }
 }
 
-function disconnect() {
-  wallet.disconnect();
-  closeApp();
-}
-
 function updateHeaderScroll() {
   headerScrolled.value = window.scrollY > 4;
 }
@@ -240,21 +219,7 @@ onBeforeUnmount(() => {
         <a :href="studioBase" target="_blank" rel="noreferrer">Studio</a>
       </nav>
       <div class="ecosystem-actions">
-        <div v-if="wallet.connected.value" class="ecosystem-account">
-          <button type="button" @click="copy(wallet.address.value!)">
-            <Check v-if="copied" :size="15" />
-            <Copy v-else :size="15" />
-            <span>{{ short(wallet.address.value!, 7, 5) }}</span>
-          </button>
-          <span class="ecosystem-balance">{{ walletBalanceText }} ETH</span>
-          <button type="button" class="ecosystem-icon-button" aria-label="Disconnect wallet" @click="disconnect">
-            <Power :size="16" />
-          </button>
-        </div>
-        <button v-else-if="!isWalletPage" class="ecosystem-connect" type="button" :disabled="wallet.connecting.value" @click="wallet.connect">
-          <LoaderCircle v-if="wallet.connecting.value" class="spin" :size="17" />
-          <span>{{ wallet.connecting.value ? "Connecting" : "Connect Wallet" }}</span>
-        </button>
+        <button type="button" class="ecosystem-submit-trigger" @click="submitOpen = true">Submit app</button>
       </div>
     </header>
 
@@ -289,7 +254,6 @@ onBeforeUnmount(() => {
               <Search :size="18" />
               <input v-model="query" type="search" placeholder="Search" autocomplete="off" />
             </label>
-            <button type="button" class="ecosystem-submit-trigger" @click="submitOpen = true">Submit app</button>
           </div>
 
           <div class="ecosystem-app-list">
@@ -308,7 +272,7 @@ onBeforeUnmount(() => {
               </span>
               <span class="ecosystem-app-copy">
                 <strong>{{ app.name }}</strong>
-                <small>{{ app.domain }}</small>
+                <small>{{ app.external ? app.domain : app.description }}</small>
               </span>
               <span class="ecosystem-chip">{{ app.category }}</span>
               <ArrowUpRight :size="20" />

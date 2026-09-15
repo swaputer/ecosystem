@@ -47,7 +47,7 @@ const envelopeType =
 const exactInputType =
   "tuple(tuple(address currency0,address currency1,uint24 fee,int24 tickSpacing,address hooks) poolKey,bool zeroForOne,uint128 amountIn,uint128 amountOutMinimum,uint256 minHopPriceX36,bytes hookData)";
 
-function protocolHarness() {
+function protocolHarness(tradingLive = true) {
   const source = readFileSync(new URL("../src/lib/protocol.ts", import.meta.url), "utf8");
   const compiled = ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
@@ -58,6 +58,7 @@ function protocolHarness() {
     SWAPVM: {
       enabled: true,
       directEnabled: true,
+      tradingLive,
       protocolVersion: "1.2",
       worldId,
       kernel: getAddress(`0x${"ab".repeat(20)}`),
@@ -153,6 +154,16 @@ test("direct SVM actions bind signatures to the official router and no executor"
     () => resolveVMExecutionBinding("universal-router", actor, universalRouter, swaputerRouter, executor),
     /cannot bind a custom executor/
   );
+});
+
+test("Hook trading status does not globally gate SVM envelope signing", async () => {
+  const { api, capture, signer } = protocolHarness(false);
+  const built = await api.buildSignedCallEnvelope(signer, actor, target, "0x12345678", {
+    executionRoute: "swaputer-router"
+  });
+  assert.equal(capture.action.op, 2);
+  assert.equal(built.envelope.targetOrCodeHash, target);
+  assert.equal(capture.execute, null);
 });
 
 test("executor-bound applications remain bound to the Swaputer router", () => {

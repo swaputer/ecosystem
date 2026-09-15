@@ -1,23 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
-
-async function wallet(page: Page) {
-  await page.addInitScript(() => {
-    const listeners: Record<string, Function[]> = {};
-    (window as any).__walletCalls = [];
-    (window as any).__walletEvent = (name: string, value: unknown) => listeners[name]?.forEach(fn => fn(value));
-    (window as any).ethereum = {
-      request: async ({ method }: { method: string }) => {
-        (window as any).__walletCalls.push(method);
-        if (method === 'eth_chainId') return '0x14a34';
-        if (method === 'eth_getBalance') return '0x12b251b7e740000';
-        if (method === 'eth_requestAccounts' || method === 'eth_accounts') return ['0x1111111111111111111111111111111111111111'];
-        throw new Error(`Unexpected wallet operation ${method}`);
-      },
-      on: (name: string, fn: Function) => (listeners[name] ??= []).push(fn),
-      removeListener: (name: string, fn: Function) => listeners[name] = (listeners[name] ?? []).filter(item => item !== fn)
-    };
-  });
-}
+import { test, expect } from '@playwright/test';
 
 test('ecosystem directory filters, searches, and opens internal apps', async ({ page }) => {
   await page.goto('/');
@@ -26,15 +7,15 @@ test('ecosystem directory filters, searches, and opens internal apps', async ({ 
 
   await page.locator('.ecosystem-filters').getByRole('button', { name: 'Wallet', exact: true }).click();
   await expect(page.locator('.ecosystem-app-row')).toHaveCount(1);
-  await expect(page.getByRole('button', { name: /Wallet wallet\.swaputer\.com/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Wallet Manage and transfer Swaputer assets/ })).toBeVisible();
 
   await page.locator('.ecosystem-filters').getByRole('button', { name: 'All', exact: true }).click();
   await page.getByPlaceholder('Search').fill('factory');
   await expect(page.locator('.ecosystem-app-row')).toHaveCount(1);
-  await expect(page.getByRole('button', { name: /Factory factory\.swaputer\.com/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Factory Create and mint tokens on Swaputer/ })).toBeVisible();
 
   await page.getByPlaceholder('Search').fill('');
-  await page.getByRole('button', { name: /Factory factory\.swaputer\.com/ }).click();
+  await page.getByRole('button', { name: /Factory Create and mint tokens on Swaputer/ }).click();
   const panel = page.locator('.ecosystem-app-page');
   await expect(panel).toBeVisible();
   await expect(panel).toContainText('Factory');
@@ -43,34 +24,32 @@ test('ecosystem directory filters, searches, and opens internal apps', async ({ 
   await expect(panel).toHaveCount(0);
 });
 
-test('wallet connection stays non-transactional and displays account chrome', async ({ page }) => {
-  await wallet(page);
+test('global header keeps wallet actions inside apps and exposes app submission', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Connect Wallet' }).click();
-  await expect(page.locator('.ecosystem-account')).toContainText('0.0842');
-  await expect(page.locator('.ecosystem-account')).toContainText('ETH');
-  expect(await page.evaluate(() => (window as any).__walletCalls)).not.toContain('eth_sendTransaction');
+  await expect(page.locator('.ecosystem-header').getByRole('button', { name: 'Connect Wallet' })).toHaveCount(0);
+  await page.locator('.ecosystem-header').getByRole('button', { name: 'Submit app' }).click();
+  await expect(page.getByRole('heading', { name: 'Submit an application' })).toBeVisible();
 });
 
 test('external apps open their standalone products', async ({ page }) => {
-  await page.context().route('http://127.0.0.1:4174/**', route => route.fulfill({
+  await page.context().route('https://scan.swaputer.com/**', route => route.fulfill({
     contentType: 'text/html',
     body: '<!doctype html><title>Explore stub</title>'
   }));
-  await page.context().route('http://127.0.0.1:4176/**', route => route.fulfill({
+  await page.context().route('https://studio.swaputer.com/**', route => route.fulfill({
     contentType: 'text/html',
     body: '<!doctype html><title>Studio stub</title>'
   }));
   await page.goto('/');
 
   const explorePopup = page.waitForEvent('popup');
-  await page.getByRole('button', { name: /Explore explore\.swaputer\.com/ }).click();
-  await expect.poll(async () => (await explorePopup).url()).toContain('127.0.0.1:4174');
+  await page.getByRole('button', { name: /Explore scan\.swaputer\.com/ }).click();
+  await expect.poll(async () => (await explorePopup).url()).toContain('scan.swaputer.com');
   await (await explorePopup).close();
 
   const studioPopup = page.waitForEvent('popup');
   await page.getByRole('button', { name: /Studio studio\.swaputer\.com/ }).click();
-  await expect.poll(async () => (await studioPopup).url()).toContain('127.0.0.1:4176');
+  await expect.poll(async () => (await studioPopup).url()).toContain('studio.swaputer.com');
   await (await studioPopup).close();
 });
 

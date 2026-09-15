@@ -9,9 +9,9 @@ A clean ecosystem directory for Swaputer protocol applications. It gives users o
 - **Wallet** starts empty, imports indexed Swaputer token addresses, reads their protocol balances, and sends supported tokens to an EVM wallet address.
 - **Studio** opens the standalone online Studio.
 
-The included release is Base Sepolia. Connecting a wallet does not sign or send a transaction. Transaction actions request confirmation in the wallet. Account or network changes require reconnection.
+The included release is Ethereum Mainnet. Connecting a wallet does not sign or send a transaction. The Hook's one-way `live()` state controls pool trading only and is not used as a global client-side gate for ecosystem actions. The onchain route remains authoritative for each transaction. Account or network changes require reconnection.
 
-Ecosystem serializes protocol writes so two applications cannot reuse the same action nonce. A write is shown as confirmed when its one-confirmation Base receipt succeeds; protocol execution is atomic, so an SVM failure reverts the outer transaction. If a wallet or RPC cannot obtain that receipt, Ecosystem preserves the full transaction hash for Explore reconciliation and blocks further writes until the page is reloaded.
+Ecosystem serializes protocol writes so two applications cannot reuse the same action nonce. The Ethereum mainnet release uses one confirmation; protocol execution is atomic, so an SVM failure reverts the outer transaction. If a wallet or RPC cannot obtain that receipt, Ecosystem preserves the full transaction hash for Explore reconciliation and blocks further writes until the page is reloaded.
 
 Use an injected EVM browser wallet on desktop, or open the site in an EVM wallet's built-in mobile browser. Ordinary mobile Safari/Chrome without an injected wallet cannot connect in this version; WalletConnect is not integrated. Disconnect clears the local session; it does not revoke the wallet's site permission.
 
@@ -37,7 +37,7 @@ Open `http://127.0.0.1:4175`. The development server forwards `/api` to the inde
 | `VITE_STUDIO_URL` | Standalone Studio URL |
 | `VITE_RPC_URL` | Optional read-only RPC endpoint |
 
-Contract addresses and release scope are pinned in `config/base-sepolia.json`. The app uses the published `@swaputer-labs/tinysol` compiler and includes the matching contract sources. No sibling repository or submodule is required to install or build it.
+Contract addresses and release scope are pinned in `config/ethereum-mainnet.json`. The app uses the published `@swaputer-labs/tinysol` compiler and includes the matching contract sources. No sibling repository or submodule is required to install or build it.
 
 ## Verification
 

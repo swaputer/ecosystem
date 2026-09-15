@@ -21,7 +21,7 @@ npm install
 npx wrangler kv namespace create APP_CATALOG
 ```
 
-1. Copy the returned namespace IDs into `wrangler.toml`.
+1. Copy the returned namespace ID into `wrangler.jsonc`.
 2. Fill `ALLOWED_ORIGIN` as needed in Wrangler vars.
 
 ```bash

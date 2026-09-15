@@ -149,66 +149,6 @@ body {
   min-width: 0;
 }
 
-.ecosystem-connect {
-  min-width: 128px;
-  height: 40px;
-  padding: 0 18px;
-  border: 0;
-  border-radius: 11px;
-  background: linear-gradient(180deg, #ff4dcc 0%, var(--ecosystem-brand) 100%);
-  color: #fff;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  font-size: 14px;
-  font-weight: 400;
-  box-shadow: 0 10px 28px rgba(255, 55, 199, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.28);
-}
-
-.ecosystem-connect:hover:not(:disabled) {
-  background: linear-gradient(180deg, #f735c3 0%, var(--ecosystem-brand-hover) 100%);
-}
-
-.ecosystem-account {
-  min-width: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  color: #655868;
-  font-size: 14px;
-}
-
-.ecosystem-account button {
-  height: 36px;
-  border: 1px solid var(--ecosystem-rule);
-  border-radius: 999px;
-  background: #fff;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  color: var(--ecosystem-ink);
-}
-
-.ecosystem-account button:first-child {
-  padding: 0 12px;
-}
-
-.ecosystem-icon-button {
-  width: 36px;
-  justify-content: center;
-  padding: 0;
-}
-
-.ecosystem-account button:hover {
-  border-color: var(--ecosystem-rule-strong);
-  background: var(--ecosystem-soft);
-}
-
-.ecosystem-balance {
-  white-space: nowrap;
-}
-
 .ecosystem-main {
   width: min(1296px, calc(100% - 64px));
   margin: 0 auto;
@@ -526,11 +466,12 @@ body {
 }
 
 .ecosystem-submit-trigger {
+  min-width: 112px;
   height: 36px;
-  padding: 0 17px;
-  border: 1px solid var(--ecosystem-brand);
-  border-radius: 999px;
-  background: var(--ecosystem-brand);
+  padding: 0 16px;
+  border: 0;
+  border-radius: 9px;
+  background: linear-gradient(180deg, #ff4dcc 0%, var(--ecosystem-brand) 100%);
   color: #fff;
   flex: 0 0 auto;
   font-size: 14px;
@@ -540,8 +481,7 @@ body {
 }
 
 .ecosystem-submit-trigger:hover {
-  background: var(--ecosystem-brand-hover);
-  border-color: var(--ecosystem-brand-hover);
+  background: linear-gradient(180deg, #f735c3 0%, var(--ecosystem-brand-hover) 100%);
 }
 
 .ecosystem-submit-backdrop {
@@ -945,7 +885,7 @@ body {
   }
 
   .ecosystem-submit-trigger {
-    width: 100%;
+    width: auto;
     justify-content: center;
   }
 
@@ -972,15 +912,6 @@ body {
     font-size: 13px;
   }
 
-  .ecosystem-account {
-    max-width: 190px;
-    justify-content: flex-end;
-  }
-
-  .ecosystem-balance {
-    display: none;
-  }
-
   .ecosystem-app-body .page {
     padding: 0 18px 24px;
   }
@@ -995,14 +926,6 @@ body {
   .ecosystem-main {
     width: min(100% - 24px, 720px);
     padding-bottom: 64px;
-  }
-
-  .ecosystem-connect {
-    min-width: 0;
-    height: 42px;
-    padding: 0 15px;
-    border-radius: 9px;
-    font-size: 13px;
   }
 
   .ecosystem-nav {
